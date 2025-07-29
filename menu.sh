@@ -1159,7 +1159,19 @@ change_ip() {
     done
 
     case "$b" in
-        0) error " $(text 150) " ;;
+        0)
+            hint "\n $(text 155) \n"
+            hint "1. Install WARP Interface (warp d)"
+            hint "2. Install WARP Linux Client (warp c)"
+            hint "3. Install WireProxy (warp w)"
+            reading " $(text 50) " INSTALL_CHOICE
+            case "$INSTALL_CHOICE" in
+                1) check_stack; CONF=${CONF3[n]}; install ;;
+                2) client_install ;;
+                3) IS_PUFFERFFISH=is_pufferffish; install ;;
+                *) warning " $(text 51) "; exit 1 ;;
+            esac
+            ;;
         1|2|4) ${CHANGE_IP1[b]} ;;
         *)
             hint "\n ${SHOW_CHOOSE[b]} \n" && reading " $(text 50) " MODE
