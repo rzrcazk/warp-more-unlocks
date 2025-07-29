@@ -1045,7 +1045,7 @@ calc_ip_net(){
         local assertion=$(echo $PreAssertion|jq -r '.assertion')
         local PreDisneyCookie=$(echo "$Media_Cookie"|sed -n '1p')
         local disneycookie=$(echo $PreDisneyCookie|sed "s/DISNEYASSERTION/$assertion/g")
-        local TokenContent=$(curl $CurlARG -$ip_version --user-agent "$UA_Browser" -s --max-time 10 -X POST "https://disney.api.edge.bamgrid.com/token" -d "$disneycookie" 2>&1)
+        local TokenContent=$(curl $CurlARG -$ip_version --user-agent "$UA_Browser" -s --max-time 10 -X POST "https://disney.api.edge.bamgrid.com/token" -H "authorization: Bearer ZGlzbmV5JmJyb3dzZXImMS4wLjA.Cu56AgSfBTDag5NiRA81oLHkDZfu5L3CKadnefEAY84" -H "Content-Type: application/json" -d "$disneycookie" 2>&1)
         local isBanned=$(echo $TokenContent|jq -r 'select(.error_description == "forbidden-location") | .error_description')
         local is403=$(echo $TokenContent|grep '403 ERROR')
         if [ -n "$isBanned" ]||[ -n "$is403" ];then
@@ -1190,7 +1190,7 @@ change_ip() {
         reading " Your choice: " user_choices
 
         if [ -z "$user_choices" ]; then
-            tests_to_run=("Netflix")
+            tests_to_run=("${all_tests[@]}")
         else
             for choice in $user_choices; do
                 if [[ "$choice" =~ ^[1-6]$ ]]; then
@@ -1201,7 +1201,7 @@ change_ip() {
 
         if [ ${#tests_to_run[@]} -eq 0 ]; then
             warning " No valid selection. Defaulting to Netflix only."
-            tests_to_run=("Netflix")
+            tests_to_run=("${all_tests[@]}")
         fi
         
         info "\n Will test for: ${tests_to_run[*]}"
@@ -1290,7 +1290,7 @@ change_ip() {
         reading " Your choice: " user_choices
 
         if [ -z "$user_choices" ]; then
-            tests_to_run=("Netflix")
+            tests_to_run=("${all_tests[@]}")
         else
             for choice in $user_choices; do
                 if [[ "$choice" =~ ^[1-6]$ ]]; then
@@ -1301,7 +1301,7 @@ change_ip() {
 
         if [ ${#tests_to_run[@]} -eq 0 ]; then
             warning " No valid selection. Defaulting to Netflix only."
-            tests_to_run=("Netflix")
+            tests_to_run=("${all_tests[@]}")
         fi
         
         info "\n Will test for: ${tests_to_run[*]}"
@@ -1380,7 +1380,7 @@ change_ip() {
         reading " Your choice: " user_choices
 
         if [ -z "$user_choices" ]; then
-            tests_to_run=("Netflix")
+            tests_to_run=("${all_tests[@]}")
         else
             for choice in $user_choices; do
                 if [[ "$choice" =~ ^[1-6]$ ]]; then
@@ -1391,7 +1391,7 @@ change_ip() {
 
         if [ ${#tests_to_run[@]} -eq 0 ]; then
             warning " No valid selection. Defaulting to Netflix only."
-            tests_to_run=("Netflix")
+            tests_to_run=("${all_tests[@]}")
         fi
         
         info "\n Will test for: ${tests_to_run[*]}"
