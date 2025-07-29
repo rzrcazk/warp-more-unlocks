@@ -1259,7 +1259,7 @@ change_ip() {
             all_passed=true
             for test_item in "${tests_to_run[@]}"; do
                 var_name="${test_item,,}" # e.g., netflix, disney+
-                var_name=${var_name//+/-} # disney+ -> disney-
+                var_name=${var_name//+/} # disney+ -> disney-
                 status_var="${var_name}[ustatus]"
                 if [[ ! "${!status_var}" =~ "Yes" ]]; then
                     all_passed=false
@@ -1349,7 +1349,7 @@ change_ip() {
             all_passed=true
             for test_item in "${tests_to_run[@]}"; do
                 var_name="${test_item,,}"
-                var_name=${var_name//+/-}
+                var_name=${var_name//+/}
                 status_var="${var_name}[ustatus]"
                 if [[ ! "${!status_var}" =~ "Yes" ]]; then
                     all_passed=false
@@ -1413,7 +1413,7 @@ change_ip() {
             all_passed=true
             for test_item in "${tests_to_run[@]}"; do
                 var_name="${test_item,,}"
-                var_name=${var_name//+/-}
+                var_name=${var_name//+/}
                 status_var="${var_name}[ustatus]"
                 if [[ ! "${!status_var}" =~ "Yes" ]]; then
                     all_passed=false
