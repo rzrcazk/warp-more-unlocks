@@ -878,34 +878,6 @@ input_region() {
 
 # 更换支持 Netflix WARP IP 改编自 [luoxue-bot] 的成熟作品，地址[https://github.com/luoxue-bot/warp_auto_change_ip]
 change_ip() {
-    # --- New Interactive Menu ---
-    local tests_to_run=()
-    local all_tests=("Netflix" "Disney+" "ChatGPT" "YouTube" "Amazon" "Spotify")
-    
-    hint "\n Please select the streaming services to test for unlocking:"
-    for i in "${!all_tests[@]}"; do
-        hint " $((i+1)). ${all_tests[i]}"
-    done
-    hint " (Enter numbers separated by spaces, e.g., '1 2 5', or press Enter for Netflix only)"
-    reading " Your choice: " user_choices
-
-    if [ -z "$user_choices" ]; then
-        tests_to_run=("Netflix")
-    else
-        for choice in $user_choices; do
-            if [[ "$choice" =~ ^[1-6]$ ]]; then
-                tests_to_run+=("${all_tests[$((choice-1))]}")
-            fi
-        done
-    fi
-
-    if [ ${#tests_to_run[@]} -eq 0 ]; then
-        warning " No valid selection. Defaulting to Netflix only."
-        tests_to_run=("Netflix")
-    fi
-    
-    info "\n Will test for: ${tests_to_run[*]}"
-
     # --- Original Functions (modified) ---
     change_stack() {
         hint "\n $(text 124) \n" && reading " $(text 50) " NETFLIX
@@ -913,6 +885,34 @@ change_ip() {
     }
 
     change_warp() {
+        # --- New Interactive Menu ---
+        local tests_to_run=()
+        local all_tests=("Netflix" "Disney+" "ChatGPT" "YouTube" "Amazon" "Spotify")
+        
+        hint "\n Please select the streaming services to test for unlocking:"
+        for i in "${!all_tests[@]}"; do
+            hint " $((i+1)). ${all_tests[i]}"
+        done
+        hint " (Enter numbers separated by spaces, e.g., '1 2 5', or press Enter for Netflix only)"
+        reading " Your choice: " user_choices
+
+        if [ -z "$user_choices" ]; then
+            tests_to_run=("Netflix")
+        else
+            for choice in $user_choices; do
+                if [[ "$choice" =~ ^[1-6]$ ]]; then
+                    tests_to_run+=("${all_tests[$((choice-1))]}")
+                fi
+            done
+        fi
+
+        if [ ${#tests_to_run[@]} -eq 0 ]; then
+            warning " No valid selection. Defaulting to Netflix only."
+            tests_to_run=("Netflix")
+        fi
+        
+        info "\n Will test for: ${tests_to_run[*]}"
+
         warp_restart() {
             warning " $(text 126) "
             wg-quick down warp >/dev/null 2>&1
@@ -985,6 +985,34 @@ change_ip() {
     }
 
     change_client() {
+        # --- New Interactive Menu ---
+        local tests_to_run=()
+        local all_tests=("Netflix" "Disney+" "ChatGPT" "YouTube" "Amazon" "Spotify")
+        
+        hint "\n Please select the streaming services to test for unlocking:"
+        for i in "${!all_tests[@]}"; do
+            hint " $((i+1)). ${all_tests[i]}"
+        done
+        hint " (Enter numbers separated by spaces, e.g., '1 2 5', or press Enter for Netflix only)"
+        reading " Your choice: " user_choices
+
+        if [ -z "$user_choices" ]; then
+            tests_to_run=("Netflix")
+        else
+            for choice in $user_choices; do
+                if [[ "$choice" =~ ^[1-6]$ ]]; then
+                    tests_to_run+=("${all_tests[$((choice-1))]}")
+                fi
+            done
+        fi
+
+        if [ ${#tests_to_run[@]} -eq 0 ]; then
+            warning " No valid selection. Defaulting to Netflix only."
+            tests_to_run=("Netflix")
+        fi
+        
+        info "\n Will test for: ${tests_to_run[*]}"
+
         client_restart() {
             local CLIENT_MODE=$(warp-cli --accept-tos settings | awk '/Mode:/{for (i=0; i<NF; i++) if ($i=="Mode:") {print $(i+1)}}')
             case "$CLIENT_MODE" in
@@ -1047,6 +1075,34 @@ change_ip() {
     }
 
     change_wireproxy() {
+        # --- New Interactive Menu ---
+        local tests_to_run=()
+        local all_tests=("Netflix" "Disney+" "ChatGPT" "YouTube" "Amazon" "Spotify")
+        
+        hint "\n Please select the streaming services to test for unlocking:"
+        for i in "${!all_tests[@]}"; do
+            hint " $((i+1)). ${all_tests[i]}"
+        done
+        hint " (Enter numbers separated by spaces, e.g., '1 2 5', or press Enter for Netflix only)"
+        reading " Your choice: " user_choices
+
+        if [ -z "$user_choices" ]; then
+            tests_to_run=("Netflix")
+        else
+            for choice in $user_choices; do
+                if [[ "$choice" =~ ^[1-6]$ ]]; then
+                    tests_to_run+=("${all_tests[$((choice-1))]}")
+                fi
+            done
+        fi
+
+        if [ ${#tests_to_run[@]} -eq 0 ]; then
+            warning " No valid selection. Defaulting to Netflix only."
+            tests_to_run=("Netflix")
+        fi
+        
+        info "\n Will test for: ${tests_to_run[*]}"
+
         wireproxy_restart() { warning " $(text 126) " && systemctl restart wireproxy; sleep $j; }
 
         change_stack
