@@ -1228,12 +1228,12 @@ change_ip() {
         local tests_to_run=()
         local all_tests=("Netflix" "Disney+" "ChatGPT" "YouTube" "Amazon" "Spotify")
         
-        hint "\n Please select the streaming services to test for unlocking:"
+        hint "\n 请选择要测试解锁的流媒体服务:"
         for i in "${!all_tests[@]}"; do
             hint " $((i+1)). ${all_tests[i]}"
         done
-        hint " (Enter numbers separated by spaces, e.g., '1 2 5', or press Enter for Netflix only)"
-        reading " Your choice: " user_choices
+        hint " (输入数字，多个用空格隔开，例如 '1 2 5'，直接按回车则测试所有)"
+        reading " 您的选择: " user_choices
 
         if [ -z "$user_choices" ]; then
             tests_to_run=("${all_tests[@]}")
@@ -1246,11 +1246,11 @@ change_ip() {
         fi
 
         if [ ${#tests_to_run[@]} -eq 0 ]; then
-            warning " No valid selection. Defaulting to Netflix only."
+            warning " 无效选择，将测试所有服务。"
             tests_to_run=("${all_tests[@]}")
         fi
         
-        info "\n Will test for: ${tests_to_run[*]}"
+        info "\n 将测试: ${tests_to_run[*]}"
 
         warp_restart() {
             warning " $(text 126) "
@@ -1328,12 +1328,12 @@ change_ip() {
         local tests_to_run=()
         local all_tests=("Netflix" "Disney+" "ChatGPT" "YouTube" "Amazon" "Spotify")
         
-        hint "\n Please select the streaming services to test for unlocking:"
+        hint "\n 请选择要测试解锁的流媒体服务:"
         for i in "${!all_tests[@]}"; do
             hint " $((i+1)). ${all_tests[i]}"
         done
-        hint " (Enter numbers separated by spaces, e.g., '1 2 5', or press Enter for Netflix only)"
-        reading " Your choice: " user_choices
+        hint " (输入数字，多个用空格隔开，例如 '1 2 5'，直接按回车则测试所有)"
+        reading " 您的选择: " user_choices
 
         if [ -z "$user_choices" ]; then
             tests_to_run=("${all_tests[@]}")
@@ -1346,11 +1346,11 @@ change_ip() {
         fi
 
         if [ ${#tests_to_run[@]} -eq 0 ]; then
-            warning " No valid selection. Defaulting to Netflix only."
+            warning " 无效选择，将测试所有服务。"
             tests_to_run=("${all_tests[@]}")
         fi
         
-        info "\n Will test for: ${tests_to_run[*]}"
+        info "\n 将测试: ${tests_to_run[*]}"
 
         client_restart() {
             local CLIENT_MODE=$(warp-cli --accept-tos settings | awk '/Mode:/{for (i=0; i<NF; i++) if ($i=="Mode:") {print $(i+1)}}')
@@ -1418,12 +1418,12 @@ change_ip() {
         local tests_to_run=()
         local all_tests=("Netflix" "Disney+" "ChatGPT" "YouTube" "Amazon" "Spotify")
         
-        hint "\n Please select the streaming services to test for unlocking:"
+        hint "\n 请选择要测试解锁的流媒体服务:"
         for i in "${!all_tests[@]}"; do
             hint " $((i+1)). ${all_tests[i]}"
         done
-        hint " (Enter numbers separated by spaces, e.g., '1 2 5', or press Enter for Netflix only)"
-        reading " Your choice: " user_choices
+        hint " (输入数字，多个用空格隔开，例如 '1 2 5'，直接按回车则测试所有)"
+        reading " 您的选择: " user_choices
 
         if [ -z "$user_choices" ]; then
             tests_to_run=("${all_tests[@]}")
@@ -1436,11 +1436,11 @@ change_ip() {
         fi
 
         if [ ${#tests_to_run[@]} -eq 0 ]; then
-            warning " No valid selection. Defaulting to Netflix only."
+            warning " 无效选择，将测试所有服务。"
             tests_to_run=("${all_tests[@]}")
         fi
         
-        info "\n Will test for: ${tests_to_run[*]}"
+        info "\n 将测试: ${tests_to_run[*]}"
 
         wireproxy_restart() { warning " $(text 126) " && systemctl restart wireproxy; sleep $j; }
 
