@@ -879,6 +879,30 @@ input_region() {
 # --- Unlock Test Functions Start ---
 
 comprehensive_unlock_test() {
+# A robust retry function
+    retry_command() {
+        local retries=3
+        local delay=2
+        local cmd="$@"
+        local result
+        local exit_code
+
+        for ((i=1; i<=retries; i++)); do
+            result=$(eval "$cmd")
+            exit_code=$?
+            if [ $exit_code -eq 0 ]; then
+                echo "$result"
+                return 0
+            fi
+            if [ $i -lt $retries ]; then
+                sleep $delay
+            fi
+        done
+
+        # Return the last result and a failure code if all retries fail
+        echo "$result"
+        return $exit_code
+    }
     # --- Extracted Variables and Functions from IPQuality-main/ip.sh ---
 
     # Text Formatting
@@ -1033,32 +1057,54 @@ calc_ip_net(){
         local CurlARG="$1"
         local ip_version="$2"
         disney=()
+
         # Fetch cookie if not present
         if [ -z "$Media_Cookie" ]; then
-            Media_Cookie=$(curl -sL --retry 3 --max-time 10 "https://raw.githubusercontent.com/xykt/IPQuality/main/ref/cookies.txt")
+            Media_Cookie=$(retry_command "curl -sL --retry 3 --max-time 10 'https://raw.githubusercontent.com/xykt/IPQuality/main/ref/cookies.txt'")
+            if [ $? -ne 0 ]; then
+                disney[ustatus]="${smedia_bad}"
+                return
+            fi
         fi
-        local PreAssertion=$(curl $CurlARG -$ip_version --user-agent "$UA_Browser" -s --max-time 10 -X POST "https://disney.api.edge.bamgrid.com/devices" -H "authorization: Bearer ZGlzbmV5JmJyb3dzZXImMS4wLjA.Cu56AgSfBTDag5NiRA81oLHkDZfu5L3CKadnefEAY84" -H "content-type: application/json; charset=UTF-8" -d '{"deviceFamily":"browser","applicationRuntime":"chrome","deviceProfile":"windows","attributes":{}}' 2>&1)
-        if [[ $PreAssertion == "curl"* ]];then
+
+        local PreAssertion
+        PreAssertion=$(retry_command "curl $CurlARG -$ip_version --user-agent '$UA_Browser' -s --max-time 10 -X POST 'https://disney.api.edge.bamgrid.com/devices' -H 'authorization: Bearer ZGlzbmV5JmJyb3dzZXImMS4wLjA.Cu56AgSfBTDag5NiRA81oLHkDZfu5L3CKadnefEAY84' -H 'content-type: application/json; charset=UTF-8' -d '{\"deviceFamily\":\"browser\",\"applicationRuntime\":\"chrome\",\"deviceProfile\":\"windows\",\"attributes\":{}}'")
+        if [ $? -ne 0 ] || ! echo "$PreAssertion" | jq . > /dev/null 2>&1; then
             disney[ustatus]="${smedia_bad}"
             return
         fi
-        local assertion=$(echo $PreAssertion|jq -r '.assertion')
-        local PreDisneyCookie=$(echo "$Media_Cookie"|sed -n '1p')
-        local disneycookie=$(echo $PreDisneyCookie|sed "s/DISNEYASSERTION/$assertion/g")
-        local TokenContent=$(curl $CurlARG -$ip_version --user-agent "$UA_Browser" -s --max-time 10 -X POST "https://disney.api.edge.bamgrid.com/token" -H "authorization: Bearer ZGlzbmV5JmJyb3dzZXImMS4wLjA.Cu56AgSfBTDag5NiRA81oLHkDZfu5L3CKadnefEAY84" -H "Content-Type: application/json" -d "$disneycookie" 2>&1)
-        local isBanned=$(echo $TokenContent|jq -r 'select(.error_description == "forbidden-location") | .error_description')
-        local is403=$(echo $TokenContent|grep '403 ERROR')
-        if [ -n "$isBanned" ]||[ -n "$is403" ];then
+
+        local assertion=$(echo "$PreAssertion" | jq -r '.assertion')
+        local PreDisneyCookie=$(echo "$Media_Cookie" | sed -n '1p')
+        local disneycookie=$(echo "$PreDisneyCookie" | sed "s/DISNEYASSERTION/$assertion/g")
+
+        local TokenContent
+        TokenContent=$(retry_command "curl $CurlARG -$ip_version --user-agent '$UA_Browser' -s --max-time 10 -X POST 'https://disney.api.edge.bamgrid.com/token' -H 'authorization: Bearer ZGlzbmV5JmJyb3dzZXImMS4wLjA.Cu56AgSfBTDag5NiRA81oLHkDZfu5L3CKadnefEAY84' -H 'Content-Type: application/json' -d '$disneycookie'")
+        if [ $? -ne 0 ] || ! echo "$TokenContent" | jq . > /dev/null 2>&1; then
+            disney[ustatus]="${smedia_bad}"
+            return
+        fi
+
+        local isBanned=$(echo "$TokenContent" | jq -r 'select(.error_description == "forbidden-location") | .error_description')
+        if [ -n "$isBanned" ]; then
             disney[ustatus]="${smedia_no}"
             return
         fi
-        local fakecontent=$(echo "$Media_Cookie"|sed -n '8p')
-        local refreshToken=$(echo $TokenContent|jq -r '.refresh_token')
-        local disneycontent=$(echo $fakecontent|sed "s/ILOVEDISNEY/$refreshToken/g")
-        local tmpresult=$(curl $CurlARG -$ip_version --user-agent "$UA_Browser" -X POST -sSL --max-time 10 "https://disney.api.edge.bamgrid.com/graph/v1/device/graphql" -H "authorization: ZGlzbmV5JmJyb3dzZXImMS4wLjA.Cu56AgSfBTDag5NiRA81oLHkDZfu5L3CKadnefEAY84" -d "$disneycontent" 2>&1)
-        local region=$(echo $tmpresult|jq -r '.extensions.sdk.session.location.countryCode')
-        local inSupportedLocation=$(echo $tmpresult|jq -r '.extensions.sdk.session.inSupportedLocation')
-        if [ -n "$region" ]&&[[ $inSupportedLocation == "true" ]];then
+
+        local fakecontent=$(echo "$Media_Cookie" | sed -n '8p')
+        local refreshToken=$(echo "$TokenContent" | jq -r '.refresh_token')
+        local disneycontent=$(echo "$fakecontent" | sed "s/ILOVEDISNEY/$refreshToken/g")
+
+        local tmpresult
+        tmpresult=$(retry_command "curl $CurlARG -$ip_version --user-agent '$UA_Browser' -X POST -sSL --max-time 10 'https://disney.api.edge.bamgrid.com/graph/v1/device/graphql' -H 'authorization: ZGlzbmV5JmJyb3dzZXImMS4wLjA.Cu56AgSfBTDag5NiRA81oLHkDZfu5L3CKadnefEAY84' -d '$disneycontent'")
+        if [ $? -ne 0 ] || ! echo "$tmpresult" | jq . > /dev/null 2>&1; then
+            disney[ustatus]="${smedia_bad}"
+            return
+        fi
+
+        local region=$(echo "$tmpresult" | jq -r '.extensions.sdk.session.location.countryCode')
+        local inSupportedLocation=$(echo "$tmpresult" | jq -r '.extensions.sdk.session.inSupportedLocation')
+        if [ -n "$region" ] && [[ "$inSupportedLocation" == "true" ]]; then
             disney[ustatus]="${smedia_yes}"
         else
             disney[ustatus]="${smedia_no}"
