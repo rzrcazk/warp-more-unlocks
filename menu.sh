@@ -913,6 +913,25 @@ comprehensive_unlock_test() {
 
     # --- Helper Functions ---
 
+calc_ip_net(){
+        local ip_addr=$1
+        local subnet_mask=$2
+        local OLD_IFS="$IFS"
+        IFS='.'
+        ip_addr=($ip_addr)
+        subnet_mask=($subnet_mask)
+        IFS="$OLD_IFS"
+        local network_addr=""
+        for i in {0..3}; do
+            local octet=$((${ip_addr[$i]} & ${subnet_mask[$i]}))
+            if [ -z "$network_addr" ]; then
+                network_addr="$octet"
+            else
+                network_addr="$network_addr.$octet"
+            fi
+        done
+        echo "$network_addr"
+    }
     Check_DNS_IP(){
         if [ "$1" != "${1#*[0-9].[0-9]}" ];then
             if [ "$(calc_ip_net "$1" 255.0.0.0)" == "10.0.0.0" ];then echo 0
