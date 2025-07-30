@@ -1224,7 +1224,6 @@ change_ip() {
         local warp_mode="$3"
 
         info "正在安装后台服务..."
-        # Create config file
         cat > /etc/warp-ip-updater.conf << EOF
 # WARP IP Updater Configuration
 CHECK_SERVICES="$tests_to_run_str"
@@ -1232,18 +1231,15 @@ IP_VERSION="$nf_version"
 WARP_MODE="$warp_mode"
 EOF
 
-        # Create systemd service file
         cat > /etc/systemd/system/warp-ip-updater.service << EOF
 [Unit]
 Description=WARP IP Auto-Updater for Stream Media
 After=network.target
-
 [Service]
 ExecStart=/usr/bin/warp_ip_updater.sh
 Restart=always
 RestartSec=10
 User=root
-
 [Install]
 WantedBy=multi-user.target
 EOF
@@ -1257,9 +1253,7 @@ EOF
     uninstall_service() {
         info "正在卸载后台服务..."
         systemctl disable --now warp-ip-updater.service >/dev/null 2>&1
-        rm -f /etc/systemd/system/warp-ip-updater.service
-        rm -f /etc/warp-ip-updater.conf
-        rm -f /usr/bin/warp_ip_updater.sh
+        rm -f /etc/systemd/system/warp-ip-updater.service /etc/warp-ip-updater.conf /usr/bin/warp_ip_updater.sh
         systemctl daemon-reload
         info "服务已卸载。"
     }
@@ -1268,7 +1262,7 @@ EOF
     if systemctl is-active --quiet warp-ip-updater.service; then
         hint "\n后台自动刷新服务正在运行中。"
         hint " 1. 查看服务状态"
-        hint " 2. 查看服务日志"
+        hint " 2. 查看服务日志 (按 Ctrl+C 退出)"
         hint " 3. 停止并卸载服务"
         hint " 0. 返回"
         reading " $(text 50) " service_choice
@@ -1282,31 +1276,12 @@ EOF
     fi
 
     ip_start=$(date +%s)
-    [ "$SYSTEM" != Alpine ] && ( [ "$L" = C ] && timedatectl set-timezone Asia/Shanghai || timedatectl set-timezone UTC )
     
-    # Determine which change function to call
-    local warp_mode=""
-    local change_func=""
-    INSTALL_CHECK=("wg-quick" "warp-cli" "wireproxy")
-    for a in ${!INSTALL_CHECK[@]}; do [ -x "$(type -p ${INSTALL_CHECK[a]})" ] && INSTALL_RESULT[a]=1 || INSTALL_RESULT[a]=0; done
-    
-    # Simplified logic to find the primary warp mode
-    if [ "${INSTALL_RESULT[0]}" -eq 1 ]; then
-        warp_mode="warp"
-        change_func="run_change_warp"
-    elif [ "${INSTALL_RESULT[1]}" -eq 1 ]; then
-        warp_mode="client"
-        change_func="run_change_client"
-    elif [ "${INSTALL_RESULT[2]}" -eq 1 ]; then
-        warp_mode="wireproxy"
-        change_func="run_change_wireproxy"
-    else
-        error "未检测到任何 WARP 安装。"
-    fi
-
-    # --- One-time execution functions ---
-    run_change_warp() {
-        # (This is a simplified version of the original change_warp)
+    # --- One-time execution wrapper ---
+    run_one_time_check() {
+        local warp_mode="$1"
+        local change_func_name="$2"
+        
         local tests_to_run=(); local all_tests=("Netflix" "Disney+" "ChatGPT" "YouTube" "Amazon" "Spotify")
         hint "\n 请选择要测试解锁的流媒体服务 (可多选, e.g., '1 2 5', 回车则全选):"; for i in "${!all_tests[@]}"; do hint " $((i+1)). ${all_tests[i]}"; done
         reading " 您的选择: " user_choices
@@ -1315,36 +1290,75 @@ EOF
         
         info "\n 将测试: ${tests_to_run[*]}"
         
+        # Call the specific change function, passing the tests to run as arguments
+        $change_func_name "${tests_to_run[@]}"
+        
+        # After a successful run, ask about installing the service
+        if $all_passed; then
+            info "成功找到可用 IP！"
+            reading "是否需要开启后台自动刷新服务以保持解锁状态? [y/N]: " install_confirm
+            if [[ "${install_confirm,,}" = "y" ]]; then
+                local tests_str=$(IFS=,; echo "${tests_to_run[*]}")
+                install_service "$tests_str" "$NF" "$warp_mode"
+            fi
+        fi
+    }
+
+    # --- Mode-specific change logic ---
+    change_warp_logic() {
+        local -a tests_to_run=("${@}")
         unset T4 T6; grep -q "^#.*0\.\0\/0" 2>/dev/null /etc/wireguard/warp.conf && T4=0 || T4=1; grep -q "^#.*\:\:\/0" 2>/dev/null /etc/wireguard/warp.conf && T6=0 || T6=1
         case "$T4$T6" in 01) NF='6' ;; 10) NF='4' ;; 11) hint "\n $(text 124) \n"; reading " $(text 50) " NETFLIX; NF='4'; [ "$NETFLIX" = 2 ] && NF='6' ;; esac
-
         i=0; j=10
         while true; do
-            (( i++ )); [ "$i" -gt 10 ] && error "尝试10次后仍然失败。" && break
+            (( i++ )); [ "$i" -gt 10 ] && { all_passed=false; error "尝试10次后仍然失败。"; break; }
             ip_case "$NF" warp; WAN=$(eval echo \$WAN$NF); COUNTRY=$(eval echo \$COUNTRY$NF); ASNORG=$(eval echo \$ASNORG$NF)
             info "\n[Attempt ${i}] Testing IP: $WAN ($COUNTRY - $ASNORG)"
             comprehensive_unlock_test "" "$NF" "${tests_to_run[*]}"
-            if $all_passed; then
-                info "成功找到可用 IP！"
-                reading "是否需要开启后台自动刷新服务以保持解锁状态? [y/N]: " install_confirm
-                if [[ "${install_confirm,,}" = "y" ]]; then
-                    local tests_str=$(IFS=,; echo "${tests_to_run[*]}")
-                    install_service "$tests_str" "$NF" "warp"
-                fi
-                break
-            else
-                info "解锁失败，正在更换 IP..."
-                warning " $(text 126) "; wg-quick down warp >/dev/null 2>&1; warp_api "cancel" "/etc/wireguard/warp-account.conf" >/dev/null 2>&1; warp_api "register" > /etc/wireguard/warp-account.conf 2>/dev/null; wg-quick up warp >/dev/null 2>&1; sleep $j
-            fi
+            if $all_passed; then break; else info "解锁失败，正在更换 IP..."; wg-quick down warp >/dev/null 2>&1; warp_api "cancel" "/etc/wireguard/warp-account.conf" >/dev/null 2>&1; warp_api "register" > /etc/wireguard/warp-account.conf 2>/dev/null; wg-quick up warp >/dev/null 2>&1; sleep $j; fi
         done
     }
-    
-    # Placeholder for client and wireproxy for brevity
-    run_change_client() { info "客户端模式的后台服务尚未实现。"; }
-    run_change_wireproxy() { info "Wireproxy模式的后台服务尚未实现。"; }
 
-    # Execute the determined function
-    $change_func
+    change_client_logic() {
+        local -a tests_to_run=("${@}")
+        hint "\n $(text 124) \n"; reading " $(text 50) " NETFLIX; NF='4'; [ "$NETFLIX" = 2 ] && NF='6'
+        i=0; j=10
+        while true; do
+            (( i++ )); [ "$i" -gt 10 ] && { all_passed=false; error "尝试10次后仍然失败。"; break; }
+            local client_mode_check=$(warp-cli --accept-tos settings | awk '/Mode:/{print $(i+1)}')
+            local proxy_arg=""; if [ "$client_mode_check" = 'WarpProxy' ]; then ip_case "$NF" client; WAN=$(eval echo "\$CLIENT_WAN$NF"); COUNTRY=$(eval echo "\$CLIENT_COUNTRY$NF"); ASNORG=$(eval echo "\$CLIENT_ASNORG$NF"); proxy_arg="$CLIENT_PORT"; else ip_case "$NF" is_luban; WAN=$(eval echo "\$CFWARP_WAN$NF"); COUNTRY=$(eval echo "\$CFWARP_COUNTRY$NF"); ASNORG=$(eval echo "\$CFWARP_ASNORG$NF"); fi
+            info "\n[Attempt ${i}] Testing IP: $WAN ($COUNTRY - $ASNORG)"
+            comprehensive_unlock_test "$proxy_arg" "$NF" "${tests_to_run[*]}"
+            if $all_passed; then break; else info "解锁失败，正在更换 IP..."; warp-cli --accept-tos disconnect >/dev/null 2>&1; warp-cli --accept-tos registration delete >/dev/null 2>&1; warp-cli --accept-tos registration new >/dev/null 2>&1; [ -s /etc/wireguard/license ] && warp-cli --accept-tos registration license \$(cat /etc/wireguard/license) >/dev/null 2>&1; warp-cli --accept-tos connect >/dev/null 2>&1; sleep $j; fi
+        done
+    }
+
+    change_wireproxy_logic() {
+        local -a tests_to_run=("${@}")
+        hint "\n $(text 124) \n"; reading " $(text 50) " NETFLIX; NF='4'; [ "$NETFLIX" = 2 ] && NF='6'
+        i=0; j=3
+        while true; do
+            (( i++ )); [ "$i" -gt 10 ] && { all_passed=false; error "尝试10次后仍然失败。"; break; }
+            ip_case "$NF" wireproxy; WAN=$(eval echo "\$WIREPROXY_WAN$NF"); ASNORG=$(eval echo "\$WIREPROXY_ASNORG$NF"); COUNTRY=$(eval echo "\$WIREPROXY_COUNTRY$NF")
+            info "\n[Attempt ${i}] Testing IP: $WAN ($COUNTRY - $ASNORG)"
+            comprehensive_unlock_test "$WIREPROXY_PORT" "$NF" "${tests_to_run[*]}"
+            if $all_passed; then break; else info "解锁失败，正在更换 IP..."; systemctl restart wireproxy; sleep $j; fi
+        done
+    }
+
+    # Determine which mode is active and run the check
+    INSTALL_CHECK=("wg-quick" "warp-cli" "wireproxy")
+    for a in ${!INSTALL_CHECK[@]}; do [ -x "$(type -p ${INSTALL_CHECK[a]})" ] && INSTALL_RESULT[a]=1 || INSTALL_RESULT[a]=0; done
+    
+    if [ "${INSTALL_RESULT[0]}" -eq 1 ]; then
+        run_one_time_check "warp" "change_warp_logic"
+    elif [ "${INSTALL_RESULT[1]}" -eq 1 ]; then
+        run_one_time_check "client" "change_client_logic"
+    elif [ "${INSTALL_RESULT[2]}" -eq 1 ]; then
+        run_one_time_check "wireproxy" "change_wireproxy_logic"
+    else
+        error "未检测到任何 WARP 安装。"
+    fi
 }
 
 # 安装BBR
