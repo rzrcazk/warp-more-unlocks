@@ -1211,6 +1211,21 @@ calc_ip_net(){
                 ;;
         esac
     done
+
+    # Check results and set the all_passed flag
+    all_passed=true
+    for test_item in "${TESTS_TO_RUN[@]}"; do
+ local var_name="${test_item,,}"
+ var_name=${var_name//+/} # for Disney+
+ local status_var_ref="${var_name}[ustatus]"
+ 
+ # Any status other than "Yes" is considered a failure for the loop.
+ if [[ "${!status_var_ref}" != *Yes* ]]; then
+     all_passed=false
+     break
+ fi
+    done
+
     echo -e " ${Font_B}--- Test Finished ---${Font_Suffix}"
 }
 
@@ -1310,6 +1325,7 @@ EOF
         unset T4 T6; grep -q "^#.*0\.\0\/0" 2>/dev/null /etc/wireguard/warp.conf && T4=0 || T4=1; grep -q "^#.*\:\:\/0" 2>/dev/null /etc/wireguard/warp.conf && T6=0 || T6=1
         case "$T4$T6" in 01) NF='6' ;; 10) NF='4' ;; 11) hint "\n $(text 124) \n"; reading " $(text 50) " NETFLIX; NF='4'; [ "$NETFLIX" = 2 ] && NF='6' ;; esac
         i=0; j=10
+        all_passed=false
         while true; do
             (( i++ )); [ "$i" -gt 10 ] && { all_passed=false; error "尝试10次后仍然失败。"; break; }
             ip_case "$NF" warp; WAN=$(eval echo \$WAN$NF); COUNTRY=$(eval echo \$COUNTRY$NF); ASNORG=$(eval echo \$ASNORG$NF)
@@ -1323,6 +1339,7 @@ EOF
         local -a tests_to_run=("${@}")
         hint "\n $(text 124) \n"; reading " $(text 50) " NETFLIX; NF='4'; [ "$NETFLIX" = 2 ] && NF='6'
         i=0; j=10
+        all_passed=false
         while true; do
             (( i++ )); [ "$i" -gt 10 ] && { all_passed=false; error "尝试10次后仍然失败。"; break; }
             local client_mode_check=$(warp-cli --accept-tos settings | awk '/Mode:/{print $(i+1)}')
@@ -1337,6 +1354,7 @@ EOF
         local -a tests_to_run=("${@}")
         hint "\n $(text 124) \n"; reading " $(text 50) " NETFLIX; NF='4'; [ "$NETFLIX" = 2 ] && NF='6'
         i=0; j=3
+        all_passed=false
         while true; do
             (( i++ )); [ "$i" -gt 10 ] && { all_passed=false; error "尝试10次后仍然失败。"; break; }
             ip_case "$NF" wireproxy; WAN=$(eval echo "\$WIREPROXY_WAN$NF"); ASNORG=$(eval echo "\$WIREPROXY_ASNORG$NF"); COUNTRY=$(eval echo "\$WIREPROXY_COUNTRY$NF")
