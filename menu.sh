@@ -1,5 +1,34 @@
 #!/usr/bin/env bash
 
+# Function to check and download dependencies
+check_and_download_scripts() {
+    local base_url="https://raw.githubusercontent.com/ccxkai233/warp-more-unlocks/main"
+    local scripts_dir="scripts"
+    local files_to_check=(
+        "$scripts_dir/variables.sh"
+        "$scripts_dir/unlock_test.sh"
+        "$scripts_dir/functions.sh"
+    )
+
+    if [ ! -d "$scripts_dir" ]; then
+        mkdir -p "$scripts_dir"
+    fi
+
+    for file in "${files_to_check[@]}"; do
+        if [ ! -f "$file" ]; then
+            echo "Downloading $file..."
+            wget -O "$file" "$base_url/$file"
+            if [ $? -ne 0 ]; then
+                echo "Error downloading $file. Aborting."
+                exit 1
+            fi
+        fi
+    done
+}
+
+# Run the check and download function
+check_and_download_scripts
+
 # Source variables and functions
 source scripts/variables.sh
 source scripts/unlock_test.sh
