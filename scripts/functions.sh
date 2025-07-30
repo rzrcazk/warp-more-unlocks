@@ -953,6 +953,7 @@ check_stack() {
         ;;
       'on'|'plus' )
         T4='1'
+        ;;
     esac
     case "$TRACE6" in
       off )
@@ -960,6 +961,7 @@ check_stack() {
         ;;
       'on'|'plus' )
         T6='1'
+        ;;
     esac
   fi
-  CASE
+}
