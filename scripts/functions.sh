@@ -981,4 +981,4 @@ check_stack() {
     NATIVE=("IPv6 only" "IPv4 only" "$(text 69)" "NAT IPv4")
     CONF1=("014" "104" "114" "11N4")
     CONF2=("016" "106" "116" "11N6")
-    CONF3=("01D" "10D" "
+    CONF3=("01D" "10D" "11D" "11ND")
