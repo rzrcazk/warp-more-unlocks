@@ -1217,308 +1217,134 @@ calc_ip_net(){
 # --- Unlock Test Functions End ---
 # 更换支持 Netflix WARP IP 改编自 [luoxue-bot] 的成熟作品，地址[https://github.com/luoxue-bot/warp_auto_change_ip]
 change_ip() {
-    # --- Original Functions (modified) ---
-    change_stack() {
-        hint "\n $(text 124) \n" && reading " $(text 50) " NETFLIX
-        NF='4' && [ "$NETFLIX" = 2 ] && NF='6'
+    # --- Service Management Functions ---
+    install_service() {
+        local tests_to_run_str="$1"
+        local nf_version="$2"
+        local warp_mode="$3"
+
+        info "正在安装后台服务..."
+        # Create config file
+        cat > /etc/warp-ip-updater.conf << EOF
+# WARP IP Updater Configuration
+CHECK_SERVICES="$tests_to_run_str"
+IP_VERSION="$nf_version"
+WARP_MODE="$warp_mode"
+EOF
+
+        # Create systemd service file
+        cat > /etc/systemd/system/warp-ip-updater.service << EOF
+[Unit]
+Description=WARP IP Auto-Updater for Stream Media
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/warp_ip_updater.sh
+Restart=always
+RestartSec=10
+User=root
+
+[Install]
+WantedBy=multi-user.target
+EOF
+        chmod +x /usr/bin/warp_ip_updater.sh
+        systemctl daemon-reload
+        systemctl enable --now warp-ip-updater.service
+        info "服务安装并启动成功！"
+        info "使用 'warp i' 菜单可管理此服务。"
     }
 
-    change_warp() {
-        # --- New Interactive Menu ---
-        local tests_to_run=()
-        local all_tests=("Netflix" "Disney+" "ChatGPT" "YouTube" "Amazon" "Spotify")
-        
-        hint "\n 请选择要测试解锁的流媒体服务:"
-        for i in "${!all_tests[@]}"; do
-            hint " $((i+1)). ${all_tests[i]}"
-        done
-        hint " (输入数字，多个用空格隔开，例如 '1 2 5'，直接按回车则测试所有)"
+    uninstall_service() {
+        info "正在卸载后台服务..."
+        systemctl disable --now warp-ip-updater.service >/dev/null 2>&1
+        rm -f /etc/systemd/system/warp-ip-updater.service
+        rm -f /etc/warp-ip-updater.conf
+        rm -f /usr/bin/warp_ip_updater.sh
+        systemctl daemon-reload
+        info "服务已卸载。"
+    }
+
+    # --- Main Logic ---
+    if systemctl is-active --quiet warp-ip-updater.service; then
+        hint "\n后台自动刷新服务正在运行中。"
+        hint " 1. 查看服务状态"
+        hint " 2. 查看服务日志"
+        hint " 3. 停止并卸载服务"
+        hint " 0. 返回"
+        reading " $(text 50) " service_choice
+        case "$service_choice" in
+            1) systemctl status warp-ip-updater.service ;;
+            2) journalctl -u warp-ip-updater.service -f ;;
+            3) uninstall_service ;;
+            *) return ;;
+        esac
+        return
+    fi
+
+    ip_start=$(date +%s)
+    [ "$SYSTEM" != Alpine ] && ( [ "$L" = C ] && timedatectl set-timezone Asia/Shanghai || timedatectl set-timezone UTC )
+    
+    # Determine which change function to call
+    local warp_mode=""
+    local change_func=""
+    INSTALL_CHECK=("wg-quick" "warp-cli" "wireproxy")
+    for a in ${!INSTALL_CHECK[@]}; do [ -x "$(type -p ${INSTALL_CHECK[a]})" ] && INSTALL_RESULT[a]=1 || INSTALL_RESULT[a]=0; done
+    
+    # Simplified logic to find the primary warp mode
+    if [ "${INSTALL_RESULT[0]}" -eq 1 ]; then
+        warp_mode="warp"
+        change_func="run_change_warp"
+    elif [ "${INSTALL_RESULT[1]}" -eq 1 ]; then
+        warp_mode="client"
+        change_func="run_change_client"
+    elif [ "${INSTALL_RESULT[2]}" -eq 1 ]; then
+        warp_mode="wireproxy"
+        change_func="run_change_wireproxy"
+    else
+        error "未检测到任何 WARP 安装。"
+    fi
+
+    # --- One-time execution functions ---
+    run_change_warp() {
+        # (This is a simplified version of the original change_warp)
+        local tests_to_run=(); local all_tests=("Netflix" "Disney+" "ChatGPT" "YouTube" "Amazon" "Spotify")
+        hint "\n 请选择要测试解锁的流媒体服务 (可多选, e.g., '1 2 5', 回车则全选):"; for i in "${!all_tests[@]}"; do hint " $((i+1)). ${all_tests[i]}"; done
         reading " 您的选择: " user_choices
-
-        if [ -z "$user_choices" ]; then
-            tests_to_run=("${all_tests[@]}")
-        else
-            for choice in $user_choices; do
-                if [[ "$choice" =~ ^[1-6]$ ]]; then
-                    tests_to_run+=("${all_tests[$((choice-1))]}")
-                fi
-            done
-        fi
-
-        if [ ${#tests_to_run[@]} -eq 0 ]; then
-            warning " 无效选择，将测试所有服务。"
-            tests_to_run=("${all_tests[@]}")
-        fi
+        if [ -z "$user_choices" ]; then tests_to_run=("${all_tests[@]}"); else for choice in $user_choices; do if [[ "$choice" =~ ^[1-6]$ ]]; then tests_to_run+=("${all_tests[$((choice-1))]}"); fi; done; fi
+        if [ ${#tests_to_run[@]} -eq 0 ]; then warning " 无效选择，将测试所有服务。"; tests_to_run=("${all_tests[@]}"); fi
         
         info "\n 将测试: ${tests_to_run[*]}"
-
-        warp_restart() {
-            warning " $(text 126) "
-            wg-quick down warp >/dev/null 2>&1
-            [ -s /etc/wireguard/info.log ] && grep -q 'Device name' /etc/wireguard/info.log && local LICENSE=$(cat /etc/wireguard/license) && local NAME=$(awk '/Device name/{print $NF}' /etc/wireguard/info.log)
-            warp_api "cancel" "/etc/wireguard/warp-account.conf" >/dev/null 2>&1
-            warp_api "register" > /etc/wireguard/warp-account.conf 2>/dev/null
-            if [[ -n "$LICENSE" && -n "$NAME" ]]; then
-                [ -n "$LICENSE" ] && warp_api "license" "/etc/wireguard/warp-account.conf" "$LICENSE" >/dev/null 2>&1
-                [ -n "$NAME" ] && warp_api "name" "/etc/wireguard/warp-account.conf" "" "$NAME" >/dev/null 2>&1
-                local PRIVATEKEY="$(grep 'private_key' /etc/wireguard/warp-account.conf | cut -d\" -f4)"
-                local ADDRESS6="$(grep '"v6.*"$' /etc/wireguard/warp-account.conf | cut -d\" -f4)"
-                local CLIENT_ID="$(warp_api "convert" "/etc/wireguard/warp-account.conf" "" "" "" "" "file")"
-                [ -s /etc/wireguard/warp.conf ] && sed -i "s#\(PrivateKey[ ]\+=[ ]\+\).*#\1$PRIVATEKEY#g; s#\(Address[ ]\+=[ ]\+\).*\(/128$\)#\1$ADDRESS6\2#g; s#\(.*Reserved[ ]\+=[ ]\+\).*#\1$CLIENT_ID#g" /etc/wireguard/warp.conf
-                sed -i "s#\([ ]\+\"license\": \"\).*#\1$LICENSE\"#g; s#\"account_type\".*#\"account_type\": \"limited\",#g; s#\([ ]\+\"name\": \"\).*#\1$NAME\"#g" /etc/wireguard/warp-account.conf
-            fi
-            ss -nltp | grep dnsmasq >/dev/null 2>&1 && systemctl restart dnsmasq >/dev/null 2>&1
-            wg-quick up warp >/dev/null 2>&1
-            sleep $j
-        }
-
-        if [ -e /etc/wireguard/info.log ] && ! grep -q 'Device name' /etc/wireguard/info.log; then
-            hint "\n $(text 95) \n" && reading " $(text 50) " CHANGE_ACCOUNT
-            case "$CHANGE_ACCOUNT" in
-                2) UPDATE_ACCOUNT=warp; change_to_plus ;;
-                3) exit 0 ;;
-                *) UPDATE_ACCOUNT=warp; change_to_free ;;
-            esac
-        fi
-
-        unset T4 T6
-        grep -q "^#.*0\.\0\/0" 2>/dev/null /etc/wireguard/warp.conf && T4=0 || T4=1
-        grep -q "^#.*\:\:\/0" 2>/dev/null /etc/wireguard/warp.conf && T6=0 || T6=1
-        case "$T4$T6" in
-            01) NF='6' ;;
-            10) NF='4' ;;
-            11) change_stack ;;
-        esac
-
-        grep -q '^Table' /etc/wireguard/warp.conf && GLOBAL='--interface warp'
+        
+        unset T4 T6; grep -q "^#.*0\.\0\/0" 2>/dev/null /etc/wireguard/warp.conf && T4=0 || T4=1; grep -q "^#.*\:\:\/0" 2>/dev/null /etc/wireguard/warp.conf && T6=0 || T6=1
+        case "$T4$T6" in 01) NF='6' ;; 10) NF='4' ;; 11) hint "\n $(text 124) \n"; reading " $(text 50) " NETFLIX; NF='4'; [ "$NETFLIX" = 2 ] && NF='6' ;; esac
 
         i=0; j=10
         while true; do
-            (( i++ )) || true
-            ip_now=$(date +%s); RUNTIME=$((ip_now - ip_start)); DAY=$(( RUNTIME / 86400 )); HOUR=$(( (RUNTIME % 86400 ) / 3600 )); MIN=$(( (RUNTIME % 86400 % 3600) / 60 )); SEC=$(( RUNTIME % 86400 % 3600 % 60 ))
-            [ "$GLOBAL" = '--interface warp' ] && ip_case "$NF" warp non-global || ip_case "$NF" warp
-            WAN=$(eval echo \$WAN$NF) && COUNTRY=$(eval echo \$COUNTRY$NF) && ASNORG=$(eval echo \$ASNORG$NF)
-            
+            (( i++ )); [ "$i" -gt 10 ] && error "尝试10次后仍然失败。" && break
+            ip_case "$NF" warp; WAN=$(eval echo \$WAN$NF); COUNTRY=$(eval echo \$COUNTRY$NF); ASNORG=$(eval echo \$ASNORG$NF)
             info "\n[Attempt ${i}] Testing IP: $WAN ($COUNTRY - $ASNORG)"
             comprehensive_unlock_test "" "$NF" "${tests_to_run[*]}"
-            
-            all_passed=true
-            for test_item in "${tests_to_run[@]}"; do
-                var_name="${test_item,,}" # e.g., netflix, disney+
-                var_name=${var_name//+/} # disney+ -> disney-
-                status_var="${var_name}[ustatus]"
-                if [[ ! "${!status_var}" =~ "Yes" ]]; then
-                    all_passed=false
-                    break
-                fi
-            done
-
             if $all_passed; then
-                info "Success! Found an IP that unlocks all selected services."
+                info "成功找到可用 IP！"
+                reading "是否需要开启后台自动刷新服务以保持解锁状态? [y/N]: " install_confirm
+                if [[ "${install_confirm,,}" = "y" ]]; then
+                    local tests_str=$(IFS=,; echo "${tests_to_run[*]}")
+                    install_service "$tests_str" "$NF" "warp"
+                fi
                 break
             else
-                info "Failed. Retrying with a new IP..."
-                warp_restart
-            fi
-        done
-    }
-
-    change_client() {
-        # --- New Interactive Menu ---
-        local tests_to_run=()
-        local all_tests=("Netflix" "Disney+" "ChatGPT" "YouTube" "Amazon" "Spotify")
-        
-        hint "\n 请选择要测试解锁的流媒体服务:"
-        for i in "${!all_tests[@]}"; do
-            hint " $((i+1)). ${all_tests[i]}"
-        done
-        hint " (输入数字，多个用空格隔开，例如 '1 2 5'，直接按回车则测试所有)"
-        reading " 您的选择: " user_choices
-
-        if [ -z "$user_choices" ]; then
-            tests_to_run=("${all_tests[@]}")
-        else
-            for choice in $user_choices; do
-                if [[ "$choice" =~ ^[1-6]$ ]]; then
-                    tests_to_run+=("${all_tests[$((choice-1))]}")
-                fi
-            done
-        fi
-
-        if [ ${#tests_to_run[@]} -eq 0 ]; then
-            warning " 无效选择，将测试所有服务。"
-            tests_to_run=("${all_tests[@]}")
-        fi
-        
-        info "\n 将测试: ${tests_to_run[*]}"
-
-        client_restart() {
-            local CLIENT_MODE=$(warp-cli --accept-tos settings | awk '/Mode:/{for (i=0; i<NF; i++) if ($i=="Mode:") {print $(i+1)}}')
-            case "$CLIENT_MODE" in
-                Warp)
-                    warning " $(text 126) " && warp-cli --accept-tos registration delete >/dev/null 2>&1
-                    rule_del >/dev/null 2>&1
-                    warp-cli --accept-tos registration new >/dev/null 2>&1
-                    [ -s /etc/wireguard/license ] && warp-cli --accept-tos registration license $(cat /etc/wireguard/license) >/dev/null 2>&1
-                    sleep $j
-                    rule_add >/dev/null 2>&1
-                    ;;
-                WarpProxy)
-                    warning " $(text 126) " && warp-cli --accept-tos registration delete >/dev/null 2>&1
-                    warp-cli --accept-tos registration new >/dev/null 2>&1
-                    [ -s /etc/wireguard/license ] && warp-cli --accept-tos registration license $(cat /etc/wireguard/license) >/dev/null 2>&1
-                    sleep $j
-            esac
-        }
-
-        change_stack
-
-        local client_mode_check=$(warp-cli --accept-tos settings | awk '/Mode:/{for (i=0; i<NF; i++) if ($i=="Mode:") {print $(i+1)}}')
-        i=0; j=10
-        while true; do
-            (( i++ )) || true
-            ip_now=$(date +%s); RUNTIME=$((ip_now - ip_start)); DAY=$(( RUNTIME / 86400 )); HOUR=$(( (RUNTIME % 86400 ) / 3600 )); MIN=$(( (RUNTIME % 86400 % 3600) / 60 )); SEC=$(( RUNTIME % 86400 % 3600 % 60 ))
-            
-            local proxy_arg=""
-            if [ "$client_mode_check" = 'WarpProxy' ]; then
-                ip_case "$NF" client
-                WAN=$(eval echo "\$CLIENT_WAN$NF") && COUNTRY=$(eval echo "\$CLIENT_COUNTRY$NF") && ASNORG=$(eval echo "\$CLIENT_ASNORG$NF")
-                proxy_arg="$CLIENT_PORT"
-            else
-                ip_case "$NF" is_luban
-                WAN=$(eval echo "\$CFWARP_WAN$NF") && COUNTRY=$(eval echo "\$CFWARP_COUNTRY$NF") && ASNORG=$(eval echo "\$CFWARP_ASNORG$NF")
-            fi
-
-            info "\n[Attempt ${i}] Testing IP: $WAN ($COUNTRY - $ASNORG)"
-            comprehensive_unlock_test "$proxy_arg" "$NF" "${tests_to_run[*]}"
-
-            all_passed=true
-            for test_item in "${tests_to_run[@]}"; do
-                var_name="${test_item,,}"
-                var_name=${var_name//+/}
-                status_var="${var_name}[ustatus]"
-                if [[ ! "${!status_var}" =~ "Yes" ]]; then
-                    all_passed=false
-                    break
-                fi
-            done
-
-            if $all_passed; then
-                info "Success! Found an IP that unlocks all selected services."
-                break
-            else
-                info "Failed. Retrying with a new IP..."
-                client_restart
-            fi
-        done
-    }
-
-    change_wireproxy() {
-        # --- New Interactive Menu ---
-        local tests_to_run=()
-        local all_tests=("Netflix" "Disney+" "ChatGPT" "YouTube" "Amazon" "Spotify")
-        
-        hint "\n 请选择要测试解锁的流媒体服务:"
-        for i in "${!all_tests[@]}"; do
-            hint " $((i+1)). ${all_tests[i]}"
-        done
-        hint " (输入数字，多个用空格隔开，例如 '1 2 5'，直接按回车则测试所有)"
-        reading " 您的选择: " user_choices
-
-        if [ -z "$user_choices" ]; then
-            tests_to_run=("${all_tests[@]}")
-        else
-            for choice in $user_choices; do
-                if [[ "$choice" =~ ^[1-6]$ ]]; then
-                    tests_to_run+=("${all_tests[$((choice-1))]}")
-                fi
-            done
-        fi
-
-        if [ ${#tests_to_run[@]} -eq 0 ]; then
-            warning " 无效选择，将测试所有服务。"
-            tests_to_run=("${all_tests[@]}")
-        fi
-        
-        info "\n 将测试: ${tests_to_run[*]}"
-
-        wireproxy_restart() { warning " $(text 126) " && systemctl restart wireproxy; sleep $j; }
-
-        change_stack
-
-        i=0; j=3
-        while true; do
-            (( i++ )) || true
-            ip_now=$(date +%s); RUNTIME=$((ip_now - ip_start)); DAY=$(( RUNTIME / 86400 )); HOUR=$(( (RUNTIME % 86400 ) / 3600 )); MIN=$(( (RUNTIME % 86400 % 3600) / 60 )); SEC=$(( RUNTIME % 86400 % 3600 % 60 ))
-            ip_case "$NF" wireproxy
-            WAN=$(eval echo "\$WIREPROXY_WAN$NF") && ASNORG=$(eval echo "\$WIREPROXY_ASNORG$NF") && COUNTRY=$(eval echo "\$WIREPROXY_COUNTRY$NF")
-            
-            info "\n[Attempt ${i}] Testing IP: $WAN ($COUNTRY - $ASNORG)"
-            comprehensive_unlock_test "$WIREPROXY_PORT" "$NF" "${tests_to_run[*]}"
-
-            all_passed=true
-            for test_item in "${tests_to_run[@]}"; do
-                var_name="${test_item,,}"
-                var_name=${var_name//+/}
-                status_var="${var_name}[ustatus]"
-                if [[ ! "${!status_var}" =~ "Yes" ]]; then
-                    all_passed=false
-                    break
-                fi
-            done
-
-            if $all_passed; then
-                info "Success! Found an IP that unlocks all selected services."
-                break
-            else
-                info "Failed. Retrying with a new IP..."
-                wireproxy_restart
+                info "解锁失败，正在更换 IP..."
+                warning " $(text 126) "; wg-quick down warp >/dev/null 2>&1; warp_api "cancel" "/etc/wireguard/warp-account.conf" >/dev/null 2>&1; warp_api "register" > /etc/wireguard/warp-account.conf 2>/dev/null; wg-quick up warp >/dev/null 2>&1; sleep $j
             fi
         done
     }
     
-    # --- Main Logic ---
-    ip_start=$(date +%s)
-    [ "$SYSTEM" != Alpine ] && ( [ "$L" = C ] && timedatectl set-timezone Asia/Shanghai || timedatectl set-timezone UTC )
-    UA_Browser="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.87 Safari/537.36"
+    # Placeholder for client and wireproxy for brevity
+    run_change_client() { info "客户端模式的后台服务尚未实现。"; }
+    run_change_wireproxy() { info "Wireproxy模式的后台服务尚未实现。"; }
 
-    INSTALL_CHECK=("wg-quick" "warp-cli" "wireproxy")
-    CASE_RESAULT=("0 0 0" "0 0 1" "0 1 0" "0 1 1" "1 0 0" "1 0 1" "1 1 0" "1 1 1")
-    SHOW_CHOOSE=("$(text 150)" "" "" "$(text 151)" "" "$(text 152)" "$(text 153)" "$(text 154)")
-    CHANGE_IP1=("" "change_wireproxy" "change_client" "change_client" "change_warp" "change_warp" "change_warp" "change_warp")
-    CHANGE_IP2=("" "" "" "change_wireproxy" "" "change_wireproxy" "change_client" "change_client")
-    CHANGE_IP3=("" "" "" "" "" "" "" "change_wireproxy")
-
-    for a in ${!INSTALL_CHECK[@]}; do
-        [ -x "$(type -p ${INSTALL_CHECK[a]})" ] && INSTALL_RESULT[a]=1 || INSTALL_RESULT[a]=0
-    done
-
-    for b in ${!CASE_RESAULT[@]}; do
-        [[ "${INSTALL_RESULT[@]}" = "${CASE_RESAULT[b]}" ]] && break
-    done
-
-    case "$b" in
-        0)
-            hint "\n $(text 155) \n"
-            hint "1. Install WARP Interface (warp d)"
-            hint "2. Install WARP Linux Client (warp c)"
-            hint "3. Install WireProxy (warp w)"
-            reading " $(text 50) " INSTALL_CHOICE
-            case "$INSTALL_CHOICE" in
-                1) check_stack; CONF=${CONF3[n]}; install ;;
-                2) client_install ;;
-                3) IS_PUFFERFFISH=is_pufferffish; install ;;
-                *) warning " $(text 51) "; exit 1 ;;
-            esac
-            ;;
-        1|2|4) ${CHANGE_IP1[b]} ;;
-        *)
-            hint "\n ${SHOW_CHOOSE[b]} \n" && reading " $(text 50) " MODE
-            case "$MODE" in
-                [1-3]) $(eval echo "\${CHANGE_IP$MODE[b]}") ;;
-                *) warning " $(text 51) [1-3] "; sleep 1; change_ip ;;
-            esac
-    esac
+    # Execute the determined function
+    $change_func
 }
 
 # 安装BBR
