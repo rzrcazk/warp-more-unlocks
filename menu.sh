@@ -930,151 +930,232 @@ comprehensive_unlock_test() {
 # --- Unlock Test Functions End ---
 # 更换支持 Netflix WARP IP 改编自 [luoxue-bot] 的成熟作品，地址[https://github.com/luoxue-bot/warp_auto_change_ip]
 change_ip() {
-    # --- Service Management Functions ---
-    install_service() {
-        local tests_to_run_str="$1"
-        local nf_version="$2"
-        local warp_mode="$3"
+  change_stack() {
+    hint "\n $(text 124) \n" && reading " $(text 50) " NETFLIX
+    NF='4' && [ "$NETFLIX" = 2 ] && NF='6'
+  }
 
-        info "正在安装后台服务..."
-        cat > /etc/warp-ip-updater.conf << EOF
-# WARP IP Updater Configuration
-CHECK_SERVICES="$tests_to_run_str"
-IP_VERSION="$nf_version"
-WARP_MODE="$warp_mode"
-EOF
-
-        cat > /etc/systemd/system/warp-ip-updater.service << EOF
-[Unit]
-Description=WARP IP Auto-Updater for Stream Media
-After=network.target
-[Service]
-ExecStart=/usr/bin/warp_ip_updater.sh
-Restart=always
-RestartSec=10
-User=root
-[Install]
-WantedBy=multi-user.target
-EOF
-        chmod +x /usr/bin/warp_ip_updater.sh
-        systemctl daemon-reload
-        systemctl enable --now warp-ip-updater.service
-        info "服务安装并启动成功！"
-        info "使用 'warp i' 菜单可管理此服务。"
+  change_warp() {
+    warp_restart() {
+      warning " $(text 126) "
+      wg-quick down warp >/dev/null 2>&1
+      [ -s /etc/wireguard/info.log ] && grep -q 'Device name' /etc/wireguard/info.log && local LICENSE=$(cat /etc/wireguard/license) && local NAME=$(awk '/Device name/{print $NF}' /etc/wireguard/info.log)
+      warp_api "cancel" "/etc/wireguard/warp-account.conf" >/dev/null 2>&1
+      warp_api "register" > /etc/wireguard/warp-account.conf 2>/dev/null
+      # 如原来是 plus 账户，以相同的 license 升级，并修改账户和 warp 配置文件
+      if [[ -n "$LICENSE" && -n "$NAME" ]]; then
+        [ -n "$LICENSE" ] && warp_api "license" "/etc/wireguard/warp-account.conf" "$LICENSE" >/dev/null 2>&1
+        [ -n "$NAME" ] && warp_api "name" "/etc/wireguard/warp-account.conf" "" "$NAME" >/dev/null 2>&1
+        local PRIVATEKEY="$(grep 'private_key' /etc/wireguard/warp-account.conf | cut -d\" -f4)"
+        local ADDRESS6="$(grep '"v6.*"$' /etc/wireguard/warp-account.conf | cut -d\" -f4)"
+        local CLIENT_ID="$(warp_api "convert" "/etc/wireguard/warp-account.conf" "" "" "" "" "file")"
+        [ -s /etc/wireguard/warp.conf ] && sed -i "s#\(PrivateKey[ ]\+=[ ]\+\).*#\1$PRIVATEKEY#g; s#\(Address[ ]\+=[ ]\+\).*\(/128$\)#\1$ADDRESS6\2#g; s#\(.*Reserved[ ]\+=[ ]\+\).*#\1$CLIENT_ID#g" /etc/wireguard/warp.conf
+        sed -i "s#\([ ]\+\"license\": \"\).*#\1$LICENSE\"#g; s#\"account_type\".*#\"account_type\": \"limited\",#g; s#\([ ]\+\"name\": \"\).*#\1$NAME\"#g" /etc/wireguard/warp-account.conf
+      fi
+      ss -nltp | grep dnsmasq >/dev/null 2>&1 && systemctl restart dnsmasq >/dev/null 2>&1
+      wg-quick up warp >/dev/null 2>&1
+      sleep $j
     }
 
-    uninstall_service() {
-        info "正在卸载后台服务..."
-        systemctl disable --now warp-ip-updater.service >/dev/null 2>&1
-        rm -f /etc/systemd/system/warp-ip-updater.service /etc/warp-ip-updater.conf /usr/bin/warp_ip_updater.sh
-        systemctl daemon-reload
-        info "服务已卸载。"
-    }
-
-    # --- Main Logic ---
-    if systemctl is-active --quiet warp-ip-updater.service; then
-        hint "\n后台自动刷新服务正在运行中。"
-        hint " 1. 查看服务状态"
-        hint " 2. 查看服务日志 (按 Ctrl+C 退出)"
-        hint " 3. 停止并卸载服务"
-        hint " 0. 返回"
-        reading " $(text 50) " service_choice
-        case "$service_choice" in
-            1) systemctl status warp-ip-updater.service ;;
-            2) journalctl -u warp-ip-updater.service -f ;;
-            3) uninstall_service ;;
-            *) return ;;
-        esac
-        return
+    # 检测账户类型为 Team 的不能更换
+    if [ -e /etc/wireguard/info.log ] && ! grep -q 'Device name' /etc/wireguard/info.log; then
+      hint "\n $(text 95) \n" && reading " $(text 50) " CHANGE_ACCOUNT
+      case "$CHANGE_ACCOUNT" in
+        2 )
+          UPDATE_ACCOUNT=warp
+          change_to_plus
+          ;;
+        3 )
+          exit 0
+          ;;
+        * )
+          UPDATE_ACCOUNT=warp
+          change_to_free
+      esac
     fi
 
-    ip_start=$(date +%s)
-    
-    # --- One-time execution wrapper ---
-    run_one_time_check() {
-        local warp_mode="$1"
-        local change_func_name="$2"
-        
-        local tests_to_run=(); local all_tests=("Netflix" "Disney+" "ChatGPT" "YouTube" "Amazon" "Spotify")
-        hint "\n 请选择要测试解锁的流媒体服务 (可多选, e.g., '1 2 5', 回车则全选):"; for i in "${!all_tests[@]}"; do hint " $((i+1)). ${all_tests[i]}"; done
-        reading " 您的选择: " user_choices
-        if [ -z "$user_choices" ]; then tests_to_run=("${all_tests[@]}"); else for choice in $user_choices; do if [[ "$choice" =~ ^[1-6]$ ]]; then tests_to_run+=("${all_tests[$((choice-1))]}"); fi; done; fi
-        if [ ${#tests_to_run[@]} -eq 0 ]; then warning " 无效选择，将测试所有服务。"; tests_to_run=("${all_tests[@]}"); fi
-        
-        info "\n 将测试: ${tests_to_run[*]}"
-        
-        # Call the specific change function, passing the tests to run as arguments
-        $change_func_name "${tests_to_run[@]}"
-        
-        # After a successful run, ask about installing the service
-        if $all_passed; then
-            info "成功找到可用 IP！"
-            reading "是否需要开启后台自动刷新服务以保持解锁状态? [y/N]: " install_confirm
-            if [[ "${install_confirm,,}" = "y" ]]; then
-                local tests_str=$(IFS=,; echo "${tests_to_run[*]}")
-                install_service "$tests_str" "$NF" "$warp_mode"
-            fi
+    unset T4 T6
+    grep -q "^#.*0\.\0\/0" 2>/dev/null /etc/wireguard/warp.conf && T4=0 || T4=1
+    grep -q "^#.*\:\:\/0" 2>/dev/null /etc/wireguard/warp.conf && T6=0 || T6=1
+    case "$T4$T6" in
+      01 )
+        NF='6'
+        ;;
+      10 )
+        NF='4'
+        ;;
+      11 )
+        change_stack
+    esac
+
+    # 检测[全局]或[非全局]
+    grep -q '^Table' /etc/wireguard/warp.conf && GLOBAL='--interface warp'
+
+    [ -z "$EXPECT" ] && input_region
+    i=0; j=10
+    while true; do
+      (( i++ )) || true
+      ip_now=$(date +%s); RUNTIME=$((ip_now - ip_start)); DAY=$(( RUNTIME / 86400 )); HOUR=$(( (RUNTIME % 86400 ) / 3600 )); MIN=$(( (RUNTIME % 86400 % 3600) / 60 )); SEC=$(( RUNTIME % 86400 % 3600 % 60 ))
+      [ "$GLOBAL" = '--interface warp' ] && ip_case "$NF" warp non-global || ip_case "$NF" warp
+      WAN=$(eval echo \$WAN$NF) && COUNTRY=$(eval echo \$COUNTRY$NF) && ASNORG=$(eval echo \$ASNORG$NF)
+      unset RESULT REGION
+      for l in ${!RESULT_TITLE[@]}; do
+        RESULT[l]=$(curl --user-agent "${UA_Browser}" -$NF $GLOBAL -fsL --write-out %{http_code} --output /dev/null --max-time 10 "https://www.netflix.com/title/${RESULT_TITLE[l]}")
+        [ "${RESULT[l]}" = 200 ] && break
+      done
+      if [[ "${RESULT[@]}" =~ 200 ]]; then
+        REGION=$(curl --user-agent "${UA_Browser}" -"$NF" $GLOBAL -fs --max-time 10 --write-out "%{redirect_url}" --output /dev/null "https://www.netflix.com/title/$REGION_TITLE" | sed 's/.*com\/\([^-/]\{1,\}\).*/\1/g')
+        REGION=${REGION:-'US'}
+        grep -qi "$EXPECT" <<< "$REGION" && info " $(text 125) " && i=0 && sleep 1h || warp_restart
+      else
+        warp_restart
+      fi
+    done
+  }
+
+  change_client() {
+    client_restart() {
+      local CLIENT_MODE=$(warp-cli --accept-tos settings | awk '/Mode:/{for (i=0; i<NF; i++) if ($i=="Mode:") {print $(i+1)}}')
+      case "$CLIENT_MODE" in
+        Warp )
+          warning " $(text 126) " && warp-cli --accept-tos registration delete >/dev/null 2>&1
+          rule_del >/dev/null 2>&1
+          warp-cli --accept-tos registration new >/dev/null 2>&1
+          [ -s /etc/wireguard/license ] && warp-cli --accept-tos registration license $(cat /etc/wireguard/license) >/dev/null 2>&1
+          sleep $j
+          rule_add >/dev/null 2>&1
+          ;;
+        WarpProxy )
+          warning " $(text 126) " && warp-cli --accept-tos registration delete >/dev/null 2>&1
+          warp-cli --accept-tos registration delete >/dev/null 2>&1
+          warp-cli --accept-tos registration new >/dev/null 2>&1
+          [ -s /etc/wireguard/license ] && warp-cli --accept-tos registration license $(cat /etc/wireguard/license) >/dev/null 2>&1
+          sleep $j
+      esac
+    }
+
+    change_stack
+
+    if [ "$(warp-cli --accept-tos settings | awk '/Mode:/{for (i=0; i<NF; i++) if ($i=="Mode:") {print $(i+1)}}')" = 'WarpProxy' ]; then
+      [ -z "$EXPECT" ] && input_region
+      i=0; j=10
+      while true; do
+        (( i++ )) || true
+        ip_now=$(date +%s); RUNTIME=$((ip_now - ip_start)); DAY=$(( RUNTIME / 86400 )); HOUR=$(( (RUNTIME % 86400 ) / 3600 )); MIN=$(( (RUNTIME % 86400 % 3600) / 60 )); SEC=$(( RUNTIME %86400 % 3600 % 60 ))
+        ip_case "$NF" client
+        WAN=$(eval echo "\$CLIENT_WAN$NF") && ASNORG=$(eval echo "\$CLIENT_ASNORG$NF") && COUNTRY=$(eval echo "\$CLIENT_COUNTRY$NF")
+        unset RESULT REGION
+        for l in ${!RESULT_TITLE[@]}; do
+          RESULT[l]=$(curl --user-agent "${UA_Browser}" -"$NF" -sx socks5h://127.0.0.1:$CLIENT_PORT -fsL --write-out %{http_code} --output /dev/null --max-time 10 "https://www.netflix.com/title/${RESULT_TITLE[l]}")
+          [ "${RESULT[l]}" = 200 ] && break
+        done
+        if [[ "${RESULT[@]}" =~ 200 ]]; then
+          REGION=$(curl --user-agent "${UA_Browser}" -"$NF" -sx socks5h://127.0.0.1:$CLIENT_PORT -fs --max-time 10 --write-out "%{redirect_url}" --output /dev/null "https://www.netflix.com/title/$REGION_TITLE" | sed 's/.*com\/\([^-/]\{1,\}\).*/\1/g')
+          REGION=${REGION:-'US'}
+          grep -qi "$EXPECT" <<< "$REGION" && info " $(text 125) " && i=0 && sleep 1h || client_restart
+        else
+          client_restart
         fi
-    }
+      done
 
-    # --- Mode-specific change logic ---
-    change_warp_logic() {
-        local -a tests_to_run=("${@}")
-        unset T4 T6; grep -q "^#.*0\.\0\/0" 2>/dev/null /etc/wireguard/warp.conf && T4=0 || T4=1; grep -q "^#.*\:\:\/0" 2>/dev/null /etc/wireguard/warp.conf && T6=0 || T6=1
-        case "$T4$T6" in 01) NF='6' ;; 10) NF='4' ;; 11) hint "\n $(text 124) \n"; reading " $(text 50) " NETFLIX; NF='4'; [ "$NETFLIX" = 2 ] && NF='6' ;; esac
-        i=0; j=10
-        all_passed=false
-        while true; do
-            (( i++ )); [ "$i" -gt 10 ] && { all_passed=false; error "尝试10次后仍然失败。"; break; }
-            ip_case "$NF" warp; WAN=$(eval echo \$WAN$NF); COUNTRY=$(eval echo \$COUNTRY$NF); ASNORG=$(eval echo \$ASNORG$NF)
-            info "\n[Attempt ${i}] Testing IP: $WAN ($COUNTRY - $ASNORG)"
-            comprehensive_unlock_test "" "$NF" "${tests_to_run[*]}"
-            if $all_passed; then break; else info "解锁失败，正在更换 IP..."; wg-quick down warp >/dev/null 2>&1; warp_api "cancel" "/etc/wireguard/warp-account.conf" >/dev/null 2>&1; warp_api "register" > /etc/wireguard/warp-account.conf 2>/dev/null; wg-quick up warp >/dev/null 2>&1; sleep $j; fi
-        done
-    }
-
-    change_client_logic() {
-        local -a tests_to_run=("${@}")
-        hint "\n $(text 124) \n"; reading " $(text 50) " NETFLIX; NF='4'; [ "$NETFLIX" = 2 ] && NF='6'
-        i=0; j=10
-        all_passed=false
-        while true; do
-            (( i++ )); [ "$i" -gt 10 ] && { all_passed=false; error "尝试10次后仍然失败。"; break; }
-            local client_mode_check=$(warp-cli --accept-tos settings | awk '/Mode:/{print $(i+1)}')
-            local proxy_arg=""; if [ "$client_mode_check" = 'WarpProxy' ]; then ip_case "$NF" client; WAN=$(eval echo "\$CLIENT_WAN$NF"); COUNTRY=$(eval echo "\$CLIENT_COUNTRY$NF"); ASNORG=$(eval echo "\$CLIENT_ASNORG$NF"); proxy_arg="$CLIENT_PORT"; else ip_case "$NF" is_luban; WAN=$(eval echo "\$CFWARP_WAN$NF"); COUNTRY=$(eval echo "\$CFWARP_COUNTRY$NF"); ASNORG=$(eval echo "\$CFWARP_ASNORG$NF"); fi
-            info "\n[Attempt ${i}] Testing IP: $WAN ($COUNTRY - $ASNORG)"
-            comprehensive_unlock_test "$proxy_arg" "$NF" "${tests_to_run[*]}"
-            if $all_passed; then break; else info "解锁失败，正在更换 IP..."; warp-cli --accept-tos disconnect >/dev/null 2>&1; warp-cli --accept-tos registration delete >/dev/null 2>&1; warp-cli --accept-tos registration new >/dev/null 2>&1; [ -s /etc/wireguard/license ] && warp-cli --accept-tos registration license $(cat /etc/wireguard/license) >/dev/null 2>&1; warp-cli --accept-tos connect >/dev/null 2>&1; sleep $j; fi
-        done
-    }
-
-    change_wireproxy_logic() {
-        local -a tests_to_run=("${@}")
-        hint "\n $(text 124) \n"; reading " $(text 50) " NETFLIX; NF='4'; [ "$NETFLIX" = 2 ] && NF='6'
-        i=0; j=3
-        all_passed=false
-        while true; do
-            (( i++ )); [ "$i" -gt 10 ] && { all_passed=false; error "尝试10次后仍然失败。"; break; }
-            ip_case "$NF" wireproxy; WAN=$(eval echo "\$WIREPROXY_WAN$NF"); ASNORG=$(eval echo "\$WIREPROXY_ASNORG$NF"); COUNTRY=$(eval echo "\$WIREPROXY_COUNTRY$NF")
-            info "\n[Attempt ${i}] Testing IP: $WAN ($COUNTRY - $ASNORG)"
-            comprehensive_unlock_test "$WIREPROXY_PORT" "$NF" "${tests_to_run[*]}"
-            if $all_passed; then break; else info "解锁失败，正在更换 IP..."; systemctl restart wireproxy; sleep $j; fi
-        done
-    }
-
-    # Determine which mode is active and run the check
-    INSTALL_CHECK=("wg-quick" "warp-cli" "wireproxy")
-    for a in ${!INSTALL_CHECK[@]}; do [ -x "$(type -p ${INSTALL_CHECK[a]})" ] && INSTALL_RESULT[a]=1 || INSTALL_RESULT[a]=0; done
-    
-    if [ "${INSTALL_RESULT[0]}" -eq 1 ]; then
-        run_one_time_check "warp" "change_warp_logic"
-    elif [ "${INSTALL_RESULT[1]}" -eq 1 ]; then
-        run_one_time_check "client" "change_client_logic"
-    elif [ "${INSTALL_RESULT[2]}" -eq 1 ]; then
-        run_one_time_check "wireproxy" "change_wireproxy_logic"
     else
-        error "未检测到任何 WARP 安装。"
+      [ -z "$EXPECT" ] && input_region
+      i=0; j=10
+      while true; do
+        (( i++ )) || true
+        ip_now=$(date +%s); RUNTIME=$((ip_now - ip_start)); DAY=$(( RUNTIME / 86400 )); HOUR=$(( (RUNTIME % 86400 ) / 3600 )); MIN=$(( (RUNTIME % 86400 % 3600) / 60 )); SEC=$(( RUNTIME % 86400 % 3600 % 60 ))
+        ip_case "$NF" is_luban
+        WAN=$(eval echo "\$CFWARP_WAN$NF") && COUNTRY=$(eval echo "\$CFWARP_COUNTRY$NF") && ASNORG=$(eval echo "\$CFWARP_ASNORG$NF")
+        unset RESULT REGION
+        for l in ${!RESULT_TITLE[@]}; do
+          RESULT[l]=$(curl --user-agent "${UA_Browser}" $INTERFACE -fsL --write-out %{http_code} --output /dev/null --max-time 10 "https://www.netflix.com/title/${RESULT_TITLE[l]}")
+          [ "${RESULT[l]}" = 200 ] && break
+        done
+        [ "${RESULT[0]}" != 200 ] && RESULT[1]=$(curl --user-agent "${UA_Browser}" $INTERFACE -fsL --write-out %{http_code} --output /dev/null --max-time 10 "https://www.netflix.com/title/${RESULT_TITLE[1]}" 2>&1)
+        if [[ "${RESULT[@]}" =~ 200 ]]; then
+          REGION=$(curl --user-agent "${UA_Browser}" $INTERFACE -fs --max-time 10 --write-out "%{redirect_url}" --output /dev/null "https://www.netflix.com/title/$REGION_TITLE" | sed 's/.*com\/\([^-/]\{1,\}\).*/\1/g')
+          REGION=${REGION:-'US'}
+          grep -qi "$EXPECT" <<< "$REGION" && info " $(text 125) " && i=0 && sleep 1h || client_restart
+        else
+          client_restart
+        fi
+      done
     fi
+  }
+
+  change_wireproxy() {
+    wireproxy_restart() { warning " $(text 126) " && systemctl restart wireproxy; sleep $j; }
+
+    change_stack
+
+    [ -z "$EXPECT" ] && input_region
+    i=0; j=3
+    while true; do
+      (( i++ )) || true
+      ip_now=$(date +%s); RUNTIME=$((ip_now - ip_start)); DAY=$(( RUNTIME / 86400 )); HOUR=$(( (RUNTIME % 86400 ) / 3600 )); MIN=$(( (RUNTIME % 86400 % 3600) / 60 )); SEC=$(( RUNTIME % 86400 % 3600 % 60 ))
+      ip_case "$NF" wireproxy
+      WAN=$(eval echo "\$WIREPROXY_WAN$NF") && ASNORG=$(eval echo "\$WIREPROXY_ASNORG$NF") && COUNTRY=$(eval echo "\$WIREPROXY_COUNTRY$NF")
+      unset RESULT REGION
+      for l in ${!RESULT_TITLE[@]}; do
+        RESULT[l]=$(curl --user-agent "${UA_Browser}" -"$NF" -sx socks5h://127.0.0.1:$WIREPROXY_PORT -fsL --write-out %{http_code} --output /dev/null --max-time 10 "https://www.netflix.com/title/${RESULT_TITLE[l]}")
+        [ "${RESULT[l]}" = 200 ] && break
+      done
+      if [[ "${RESULT[@]}" =~ 200 ]]; then
+        REGION=$(curl --user-agent "${UA_Browser}" -"$NF" -sx socks5h://127.0.0.1:$WIREPROXY_PORT -fs --max-time 10 --write-out "%{redirect_url}" --output /dev/null "https://www.netflix.com/title/$REGION_TITLE" | sed 's/.*com\/\([^-/]\{1,\}\).*/\1/g')
+        REGION=${REGION:-'US'}
+        grep -qi "$EXPECT" <<< "$REGION" && info " $(text 125) " && i=0 && sleep 1h || wireproxy_restart
+      else
+        wireproxy_restart
+      fi
+    done
+  }
+
+  # 设置时区，让时间戳时间准确，显示脚本运行时长，中文为 GMT+8，英文为 UTC; 设置 UA
+  ip_start=$(date +%s)
+  [ "$SYSTEM" != Alpine ] && ( [ "$L" = C ] && timedatectl set-timezone Asia/Shanghai || timedatectl set-timezone UTC )
+  UA_Browser="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.87 Safari/537.36"
+
+  # 根据 lmc999 脚本检测 Netflix Title，如获取不到，使用兜底默认值
+  local LMC999=($(curl -sSLm4 ${GH_PROXY}https://raw.githubusercontent.com/lmc999/RegionRestrictionCheck/main/check.sh | sed -n 's#.*/title/\([0-9]\+\).*#\1#gp'))
+  RESULT_TITLE=(${LMC999[*]:0:2})
+  REGION_TITLE=${LMC999[2]}
+  [[ ! "${RESULT_TITLE[0]}" =~ ^[0-9]+$ ]] && RESULT_TITLE[0]='81280792'
+  [[ ! "${RESULT_TITLE[1]}" =~ ^[0-9]+$ ]] && RESULT_TITLE[1]='70143836'
+  [[ ! "$REGION_TITLE" =~ ^[0-9]+$ ]] && REGION_TITLE=${RESULT_TITLE[1]}
+
+  # 根据 WARP interface 、 Client 和 Wireproxy 的安装情况判断刷 IP 的方式
+  INSTALL_CHECK=("wg-quick" "warp-cli" "wireproxy")
+  CASE_RESAULT=("0 0 0" "0 0 1" "0 1 0" "0 1 1" "1 0 0" "1 0 1" "1 1 0" "1 1 1")
+  SHOW_CHOOSE=("$(text 150)" "" "" "$(text 151)" "" "$(text 152)" "$(text 153)" "$(text 154)")
+  CHANGE_IP1=("" "change_wireproxy" "change_client" "change_client" "change_warp" "change_warp" "change_warp" "change_warp")
+  CHANGE_IP2=("" "" "" "change_wireproxy" "" "change_wireproxy" "change_client" "change_client")
+  CHANGE_IP3=("" "" "" "" "" "" "" "change_wireproxy")
+
+  for a in ${!INSTALL_CHECK[@]}; do
+    [ -x "$(type -p ${INSTALL_CHECK[a]})" ] && INSTALL_RESULT[a]=1 || INSTALL_RESULT[a]=0
+  done
+
+  for b in ${!CASE_RESAULT[@]}; do
+    [[ "${INSTALL_RESULT[@]}" = "${CASE_RESAULT[b]}" ]] && break
+  done
+
+  case "$b" in
+    0 )
+      error " $(text 150) "
+      ;;
+    1|2|4 )
+      ${CHANGE_IP1[b]}
+      ;;
+    * )
+      hint "\n ${SHOW_CHOOSE[b]} \n" && reading " $(text 50) " MODE
+      case "$MODE" in
+        [1-3] )
+          $(eval echo "\${CHANGE_IP$MODE[b]}")
+          ;;
+        * )
+          warning " $(text 51) [1-3] "; sleep 1; change_ip
+      esac
+  esac
 }
 
 # 安装BBR
