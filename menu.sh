@@ -1587,7 +1587,7 @@ uninstall() {
   }
 
   # 如已安装 warp_unlock 项目，先行卸载
-  [ -e /usr/bin/warp_unlock.sh ] && bash <(curl -sSL https://gitlab.com/fscarmen/warp_unlock/-/raw/main/unlock.sh) -U -$L
+  [ -e /usr/bin/warp_unlock.sh ] && bash <(curl -sSL https://raw.githubusercontent.com/ccxkai233/WARP-Guardian/main/unlock.sh) -U -$L
 
   # 根据已安装情况执行卸载任务并显示结果
   UNINSTALL_CHECK=("wg-quick" "warp-cli" "wireproxy")
@@ -3619,7 +3619,7 @@ menu_setting() {
 
   ACTION[4]() { OPTION=o; onoff; }
   ACTION[5]() { client_install; }; ACTION[6]() { change_ip; }; ACTION[7]() { uninstall; }; ACTION[8]() { update; }; ACTION[9]() { bbrInstall; }; ACTION[10]() { ver; };
-  ACTION[11]() { bash <(curl -sSL https://gitlab.com/fscarmen/warp_unlock/-/raw/main/unlock.sh) -$L; };
+  ACTION[11]() { bash <(curl -sSL https://raw.githubusercontent.com/ccxkai233/WARP-Guardian/main/unlock.sh) -$L; };
   ACTION[12]() { IS_ANEMONE=is_anemone ;install; };
   ACTION[13]() { IS_PUFFERFFISH=is_pufferffish; install; };
   ACTION[14]() { IS_LUBAN=is_luban; client_install; };
