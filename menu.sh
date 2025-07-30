@@ -1329,7 +1329,7 @@ EOF
             local proxy_arg=""; if [ "$client_mode_check" = 'WarpProxy' ]; then ip_case "$NF" client; WAN=$(eval echo "\$CLIENT_WAN$NF"); COUNTRY=$(eval echo "\$CLIENT_COUNTRY$NF"); ASNORG=$(eval echo "\$CLIENT_ASNORG$NF"); proxy_arg="$CLIENT_PORT"; else ip_case "$NF" is_luban; WAN=$(eval echo "\$CFWARP_WAN$NF"); COUNTRY=$(eval echo "\$CFWARP_COUNTRY$NF"); ASNORG=$(eval echo "\$CFWARP_ASNORG$NF"); fi
             info "\n[Attempt ${i}] Testing IP: $WAN ($COUNTRY - $ASNORG)"
             comprehensive_unlock_test "$proxy_arg" "$NF" "${tests_to_run[*]}"
-            if $all_passed; then break; else info "解锁失败，正在更换 IP..."; warp-cli --accept-tos disconnect >/dev/null 2>&1; warp-cli --accept-tos registration delete >/dev/null 2>&1; warp-cli --accept-tos registration new >/dev/null 2>&1; [ -s /etc/wireguard/license ] && warp-cli --accept-tos registration license \$(cat /etc/wireguard/license) >/dev/null 2>&1; warp-cli --accept-tos connect >/dev/null 2>&1; sleep $j; fi
+            if $all_passed; then break; else info "解锁失败，正在更换 IP..."; warp-cli --accept-tos disconnect >/dev/null 2>&1; warp-cli --accept-tos registration delete >/dev/null 2>&1; warp-cli --accept-tos registration new >/dev/null 2>&1; [ -s /etc/wireguard/license ] && warp-cli --accept-tos registration license $(cat /etc/wireguard/license) >/dev/null 2>&1; warp-cli --accept-tos connect >/dev/null 2>&1; sleep $j; fi
         done
     }
 
