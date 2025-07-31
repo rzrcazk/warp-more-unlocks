@@ -103,8 +103,8 @@ echo "自动化脚本已成功部署。" \
     ```bash
     sudo /usr/bin/expect /usr/local/sbin/autowarp.exp
     ```
-    执行后，您可以检查 `/tmp/autowarp.log` 文件或使用 `warp s` 命令来确认 IP 是否已更换并满足您的解锁需求。
-
+    执行后，您可以检查 `/tmp/autowarp.log` 文件。
+    
 ### 卸载自动化脚本
 
 如果您希望移除自动更换 IP 的功能，可以使用以下一键命令来卸载定时任务和相关脚本：
