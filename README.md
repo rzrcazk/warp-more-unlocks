@@ -10,6 +10,9 @@
   - [运行脚本](#运行脚本)
   - [主要功能说明](#主要功能说明)
   - [原作者](#原作者)
+  - [自动化定时更换 IP](#自动化定时更换-ip)
+    - [一键部署命令](#一键部署命令)
+    - [命令详解](#命令详解)
 
 * * *
 
@@ -56,3 +59,30 @@ warp
 
 *   **原版 WARP 脚本**: [fscarmen/warp](https://gitlab.com/fscarmen/warp/)
 *   **IP 质量检测**: [xykt/IPQuality](https://github.com/xykt/IPQuality)
+
+* * *
+
+## 自动化定时更换 IP
+
+为了实现无人值守自动更换 IP，项目提供了一个 `expect` 脚本 (`autowarp.exp`)，它可以模拟用户交互，自动完成 `warp i` 的所有操作。
+
+### 一键部署命令
+
+在您的 VPS 上，使用 root 权限运行以下单行命令，即可完成自动化部署：
+
+```bash
+(command -v apt-get &gt;/dev/null &amp;&amp; sudo apt-get update &amp;&amp; sudo apt-get install -y expect || sudo yum install -y expect) &amp;&amp; \
+sudo wget -O /usr/local/sbin/autowarp.exp https://raw.githubusercontent.com/ccxkai233/warp-more-unlocks/main/autowarp.exp &amp;&amp; \
+sudo chmod +x /usr/local/sbin/autowarp.exp &amp;&amp; \
+(crontab -l 2&gt;/dev/null | grep -v -F "/usr/local/sbin/autowarp.exp" ; echo "0 20 * * * /usr/bin/expect /usr/local/sbin/autowarp.exp &gt; /tmp/autowarp.log 2&gt;&amp;1") | sudo crontab -
+```
+
+### 命令详解
+
+这条命令会自动执行以下操作：
+
+1.  **安装 `expect`**：自动检测并安装 `expect` 依赖。
+2.  **下载脚本**：从本 GitHub 仓库下载 `autowarp.exp` 脚本，并放置在 `/usr/local/sbin/` 目录下。
+3.  **授予权限**：为脚本添加可执行权限。
+4.  **设置定时任务**：在 `crontab` 中添加一条新任务，该任务会在**每天 UTC 时间 20:00（即北京时间次日凌晨 4:00）**自动执行脚本。此操作是幂等的，重复运行不会创建重复的任务。
+5.  **记录日志**：脚本的所有运行输出将被记录在 `/tmp/autowarp.log` 文件中，方便您随时检查。
