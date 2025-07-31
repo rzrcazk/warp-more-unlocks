@@ -3610,18 +3610,18 @@ menu_setting() {
   MENU_OPTION[7]="7.  $(text 72)"
   MENU_OPTION[8]="8.  $(text 78)"
   MENU_OPTION[9]="9.  $(text 73)"
-  MENU_OPTION[10]="10. $(text 75)"
-  MENU_OPTION[11]="11. $(text 80)"
+  #MENU_OPTION[10]="10. $(text 75)"
+  #MENU_OPTION[11]="11. $(text 80)"
   MENU_OPTION[12]="12. ${IPTABLE_INSTALLED}$(text 138)"
-  MENU_OPTION[13]="13. ${WIREPROXY_INSTALLED}$(text 148)"
+  #MENU_OPTION[13]="13. ${WIREPROXY_INSTALLED}$(text 148)"
   MENU_OPTION[14]="14. ${CLIENT_INSTALLED}${CLIENT_NOT_ALLOWED_ARCHITECTURE}$(text 168)"
   MENU_OPTION[0]="0.  $(text 76)"
 
   ACTION[4]() { OPTION=o; onoff; }
-  ACTION[5]() { client_install; }; ACTION[6]() { change_ip; }; ACTION[7]() { uninstall; }; ACTION[8]() { update; }; ACTION[9]() { bbrInstall; }; ACTION[10]() { ver; };
-  ACTION[11]() { bash <(curl -sSL https://raw.githubusercontent.com/ccxkai233/WARP-Guardian/main/unlock.sh) -$L; };
+  ACTION[5]() { client_install; }; ACTION[6]() { change_ip; }; ACTION[7]() { uninstall; }; ACTION[8]() { update; }; ACTION[9]() { bbrInstall; }; #ACTION[10]() { ver; };
+  #ACTION[11]() { bash <(curl -sSL https://raw.githubusercontent.com/ccxkai233/WARP-Guardian/main/unlock.sh) -$L; };
   ACTION[12]() { IS_ANEMONE=is_anemone ;install; };
-  ACTION[13]() { IS_PUFFERFFISH=is_pufferffish; install; };
+  #ACTION[13]() { IS_PUFFERFFISH=is_pufferffish; install; };
   ACTION[14]() { IS_LUBAN=is_luban; client_install; };
   ACTION[0]() { exit; }
 
