@@ -13,6 +13,9 @@
     - [一键部署命令](#一键部署命令)
     - [命令详解](#命令详解)
     - [检验方法](#检验方法)
+    - [卸载自动化脚本](#卸载自动化脚本)
+      - [一键卸载命令](#一键卸载命令)
+      - [命令详解](#命令详解-1)
   - [原作者](#原作者)
 
 * * *
@@ -70,7 +73,8 @@ sudo sh -c ' \
 (command -v apt-get >/dev/null && apt-get update && apt-get install -y expect || yum install -y expect) && \
 wget -O /usr/local/sbin/autowarp.exp https://raw.githubusercontent.com/ccxkai233/warp-more-unlocks/main/autowarp.exp && \
 chmod +x /usr/local/sbin/autowarp.exp && \
-(crontab -l 2>/dev/null | grep -v -F "/usr/local/sbin/autowarp.exp" ; echo "0 20 * * * /usr/bin/expect /usr/local/sbin/autowarp.exp > /tmp/autowarp.log 2>&1") | crontab - \
+(crontab -l 2>/dev/null | grep -v -F "/usr/local/sbin/autowarp.exp" ; echo "0 20 * * * /usr/bin/expect /usr/local/sbin/autowarp.exp > /tmp/autowarp.log 2>&1") | crontab - && \
+echo "自动化脚本已成功部署。" \
 '
 ```
 
@@ -100,6 +104,28 @@ chmod +x /usr/local/sbin/autowarp.exp && \
     sudo /usr/bin/expect /usr/local/sbin/autowarp.exp
     ```
     执行后，您可以检查 `/tmp/autowarp.log` 文件或使用 `warp s` 命令来确认 IP 是否已更换并满足您的解锁需求。
+
+### 卸载自动化脚本
+
+如果您希望移除自动更换 IP 的功能，可以使用以下一键命令来卸载定时任务和相关脚本：
+
+#### 一键卸载命令
+
+```bash
+sudo sh -c ' \
+(crontab -l 2>/dev/null | grep -v -F "/usr/local/sbin/autowarp.exp" | crontab -) && \
+rm -f /usr/local/sbin/autowarp.exp && \
+echo "自动化脚本已成功卸载。" \
+'
+```
+
+#### 命令详解
+
+这条命令会执行以下操作：
+
+1.  **移除定时任务**：从 `crontab` 中安全地移除与 `autowarp.exp` 相关的所有定时任务。
+2.  **删除脚本文件**：删除 `/usr/local/sbin/autowarp.exp` 文件。
+3.  **显示确认信息**：操作成功后，会提示“自动化脚本已成功卸载。”
 
 * * *
 
