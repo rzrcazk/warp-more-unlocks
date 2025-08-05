@@ -5,9 +5,9 @@ stages:
 Synchronize applications:
   stage: Synchronize applications
 
-  rules:
-    - if: ( $job == "sync" || $job == "all" ) && ( $CI_PIPELINE_SOURCE == "web" || $CI_PIPELINE_SOURCE == "schedule" || $CI_PIPELINE_SOURCE == "trigger" )
-      when: always
+#  rules:
+#    - if: ( $job == "sync" || $job == "all" ) && ( $CI_PIPELINE_SOURCE == "web" || $CI_PIPELINE_SOURCE == "schedule" || $CI_PIPELINE_SOURCE == "trigger" )
+#      when: always
 
   image: ubuntu:latest
 
@@ -115,9 +115,9 @@ Synchronize applications:
 .Mirror_script: &mirror_script
   stage: Mirror to others git repositories
 
-  rules:
-    - if: ( $job == "mirror" || $job == "all" ) && ( $CI_PIPELINE_SOURCE == "web" || $CI_PIPELINE_SOURCE == "schedule" )
-      when: always
+#  rules:
+#    - if: ( $job == "mirror" || $job == "all" ) && ( $CI_PIPELINE_SOURCE == "web" || $CI_PIPELINE_SOURCE == "schedule" )
+#      when: always
 
   image: alpine:latest
 

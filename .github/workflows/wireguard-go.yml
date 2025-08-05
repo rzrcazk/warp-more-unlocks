@@ -1,7 +1,7 @@
 name: Cross compile WireGuard-go
 
-on:
-  workflow_dispatch:
+#on:
+#  workflow_dispatch:
 
 jobs:
   WireGuard-go:

@@ -1,9 +1,9 @@
 name: Synchronize wgcf
 
-on:
-  workflow_dispatch:
-  schedule:
-    - cron: '3 2 * * *'
+#on:
+#  workflow_dispatch:
+#  schedule:
+#    - cron: '3 2 * * *'
 
 jobs:
   build:

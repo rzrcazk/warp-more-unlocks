@@ -1,12 +1,12 @@
 name: GitHub Actions Mirror
 
-on:
-  workflow_dispatch:
+#on:
+#  workflow_dispatch:
 #  push:
-#    branches: 
+#    branches:
 #      - master
-  schedule:
-    - cron: '20 20 * * *'
+#  schedule:
+#    - cron: '20 20 * * *'
 
 jobs:
   mirror_to_gitlab:

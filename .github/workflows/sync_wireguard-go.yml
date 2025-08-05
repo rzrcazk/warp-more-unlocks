@@ -1,9 +1,9 @@
 name: Synchronize wireGuard-go
 
-on:
-  workflow_dispatch:
-  schedule:
-    - cron: '18 2 * * *'
+#on:
+#  workflow_dispatch:
+#  schedule:
+#    - cron: '18 2 * * *'
 
 jobs:
   WireGuard-go:

@@ -1,9 +1,9 @@
 name: Synchronize wireproxy
 
-on:
-  workflow_dispatch:
-  schedule:
-    - cron: '13 2 * * *'
+#on:
+#  workflow_dispatch:
+#  schedule:
+#    - cron: '13 2 * * *'
 
 jobs:
   build:
