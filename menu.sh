@@ -23,8 +23,8 @@ E[4]="The WARP server cannot be connected. It may be a China Mainland VPS. You c
 C[4]="与 WARP 的服务器不能连接,可能是大陆 VPS，可手动 ping 162.159.192.1 或 ping -6 2606:4700:d0::a29f:c001，如能连通可再次运行脚本，问题反馈:[https://github.com/fscarmen/warp-sh/issues]"
 E[5]="The script supports Debian, Ubuntu, CentOS, Fedora, Arch or Alpine systems only. Feedback: [https://github.com/fscarmen/warp-sh/issues]"
 C[5]="本脚本只支持 Debian、Ubuntu、CentOS、Fedora、Arch 或 Alpine 系统,问题反馈:[https://github.com/fscarmen/warp-sh/issues]"
-E[6]="warp h (help)\n warp n (Get the WARP IP)\n warp o (Turn off WARP temporarily)\n warp u (Turn off and uninstall WARP interface and Socks5 Linux Client)\n warp b (Upgrade kernel, turn on BBR, change Linux system)\n warp a (Change account to Free, WARP+ or Teams)\n warp v (Sync the latest version)\n warp r (Connect/Disconnect WARP Linux Client)\n warp 4/6 (Add WARP IPv4/IPv6 interface)\n warp d (Add WARP dualstack interface IPv4 + IPv6)\n warp c (Install WARP Linux Client and set to proxy mode)\n warp l (Install WARP Linux Client and set to WARP mode)\n warp i (Change IP to support streaming services)\n warp e (Install Iptables + dnsmasq + ipset solution)\n warp w (Install WireProxy solution)\n warp y (Connect/Disconnect WireProxy socks5)\n warp k (Switch between kernel and wireguard-go-reserved)\n warp g (Switch between warp global and non-global)\n warp s 4/6/d (Set stack proiority: IPv4 / IPv6 / VPS default)\n"
-C[6]="warp h (帮助菜单）\n warp n (获取 WARP IP)\n warp o (临时warp开关)\n warp u (卸载 WARP 网络接口和 Socks5 Client)\n warp b (升级内核、开启BBR及DD)\n warp a (更换账户为 Free，WARP+ 或 Teams)\n warp v (同步脚本至最新版本)\n warp r (WARP Linux Client 开关)\n warp 4/6 (WARP IPv4/IPv6 单栈)\n warp d (WARP 双栈)\n warp c (安装 WARP Linux Client，开启 Socks5 代理模式)\n warp l (安装 WARP Linux Client，开启 WARP 模式)\n warp i (更换支持流媒体的 IP)\n warp e (安装 Iptables + dnsmasq + ipset 解决方案)\n warp w (安装 WireProxy 解决方案)\n warp y (WireProxy socks5 开关)\n warp k (切换 wireguard 内核 / wireguard-go-reserved)\n warp g (切换 warp 全局 / 非全局)\n warp s 4/6/d (优先级: IPv4 / IPv6 / VPS default)\n"
+E[6]="warp h (help)\n warp n (Get the WARP IP)\n warp o (Turn off WARP temporarily)\n warp u (Turn off and uninstall WARP interface and Socks5 Linux Client)\n warp b (Upgrade kernel, turn on BBR, change Linux system)\n warp a (Change account to Free, WARP+ or Teams)\n warp v (Sync the latest version)\n warp r (Connect/Disconnect WARP Linux Client)\n warp 4/6 (Add WARP IPv4/IPv6 interface)\n warp d (Add WARP dualstack interface IPv4 + IPv6)\n warp c (Install WARP Linux Client and set to proxy mode)\n warp l (Install WARP Linux Client and set to WARP mode)\n warp i (Change IP to support streaming services)\n warp e (Install Iptables + dnsmasq + ipset solution)\n warp w (Install WireProxy solution)\n warp y (Connect/Disconnect WireProxy socks5)\n warp k (Switch between kernel and wireguard-go-reserved)\n warp g (Switch between warp global and non-global)\n warp s 4/6/d (Set stack proiority: IPv4 / IPv6 / VPS default)\n warp t (Claude access test)\n"
+C[6]="warp h (帮助菜单）\n warp n (获取 WARP IP)\n warp o (临时warp开关)\n warp u (卸载 WARP 网络接口和 Socks5 Client)\n warp b (升级内核、开启BBR及DD)\n warp a (更换账户为 Free，WARP+ 或 Teams)\n warp v (同步脚本至最新版本)\n warp r (WARP Linux Client 开关)\n warp 4/6 (WARP IPv4/IPv6 单栈)\n warp d (WARP 双栈)\n warp c (安装 WARP Linux Client，开启 Socks5 代理模式)\n warp l (安装 WARP Linux Client，开启 WARP 模式)\n warp i (更换支持流媒体的 IP)\n warp e (安装 Iptables + dnsmasq + ipset 解决方案)\n warp w (安装 WireProxy 解决方案)\n warp y (WireProxy socks5 开关)\n warp k (切换 wireguard 内核 / wireguard-go-reserved)\n warp g (切换 warp 全局 / 非全局)\n warp s 4/6/d (优先级: IPv4 / IPv6 / VPS default)\n warp t (Claude 访问测试)\n"
 E[7]="Install dependence-list:"
 C[7]="安装依赖列表:"
 E[8]="All dependencies already exist and do not need to be installed additionally."
@@ -1215,6 +1215,72 @@ calc_ip_net(){
 }
 
 # --- Unlock Test Functions End ---
+
+# Claude 访问测试函数
+claude_access_test() {
+    local Font_B="\033[1m"
+    local Font_Green="\033[32m"
+    local Font_Red="\033[31m"
+    local Font_Yellow="\033[33m"
+    local Font_Suffix="\033[0m"
+    local smedia_yes=" \033[42m\033[37m Yes \033[0m  "
+    local smedia_no=" \033[41m\033[37m Block \033[0m "
+    local smedia_bad="\033[41m\033[37m Failed \033[0m "
+    
+    info "\n Claude 访问测试开始..."
+    echo -e " ${Font_B}--- Claude Access Test ---${Font_Suffix}"
+    
+    # 测试 Claude 官网访问
+    info " 正在测试 Claude 官网访问..."
+    local claude_result=$(curl -s --max-time 10 -o /dev/null -w "%{http_code}" "https://claude.ai" 2>/dev/null)
+    if [ "$claude_result" = "200" ] || [ "$claude_result" = "302" ] || [ "$claude_result" = "301" ]; then
+        echo -e " Claude.ai 官网:\t${smedia_yes}"
+    elif [ -z "$claude_result" ] || [ "$claude_result" = "000" ]; then
+        echo -e " Claude.ai 官网:\t${smedia_bad}"
+    else
+        echo -e " Claude.ai 官网:\t${smedia_no}"
+    fi
+    
+    # 测试 Anthropic API
+    info " 正在测试 Anthropic API 访问..."
+    local api_result=$(curl -s --max-time 10 -o /dev/null -w "%{http_code}" "https://api.anthropic.com" 2>/dev/null)
+    if [ "$api_result" = "200" ] || [ "$api_result" = "404" ] || [ "$api_result" = "403" ]; then
+        echo -e " Anthropic API:\t${smedia_yes}"
+    elif [ -z "$api_result" ] || [ "$api_result" = "000" ]; then
+        echo -e " Anthropic API:\t${smedia_bad}"
+    else
+        echo -e " Anthropic API:\t${smedia_no}"
+    fi
+    
+    # 测试 Claude 控制台
+    info " 正在测试 Claude Console 访问..."
+    local console_result=$(curl -s --max-time 10 -o /dev/null -w "%{http_code}" "https://console.anthropic.com" 2>/dev/null)
+    if [ "$console_result" = "200" ] || [ "$console_result" = "302" ] || [ "$console_result" = "301" ]; then
+        echo -e " Claude Console:\t${smedia_yes}"
+    elif [ -z "$console_result" ] || [ "$console_result" = "000" ]; then
+        echo -e " Claude Console:\t${smedia_bad}"
+    else
+        echo -e " Claude Console:\t${smedia_no}"
+    fi
+    
+    echo -e " ${Font_B}--- Test Finished ---${Font_Suffix}\n"
+    
+    # 显示当前网络信息
+    info " 当前网络信息:"
+    if [[ "$TRACE4$TRACE6" =~ on|plus ]]; then
+        info " IPv4: $WAN4 $COUNTRY4 $ASNORG4"
+        info " IPv6: $WAN6 $COUNTRY6 $ASNORG6"
+        info " WARP 状态: 已开启"
+    else
+        info " IPv4: $WAN4 $COUNTRY4 $ASNORG4"
+        info " IPv6: $WAN6 $COUNTRY6 $ASNORG6"
+        info " WARP 状态: 未开启"
+    fi
+    
+    echo ""
+    reading " 按回车键返回主菜单..." CONTINUE
+}
+
 # 更换支持 Netflix WARP IP 改编自 [luoxue-bot] 的成熟作品，地址[https://github.com/luoxue-bot/warp_auto_change_ip]
 change_ip() {
     # --- Original Functions (modified) ---
@@ -3610,7 +3676,7 @@ menu_setting() {
   MENU_OPTION[7]="7.  $(text 72)"
   MENU_OPTION[8]="8.  $(text 78)"
   MENU_OPTION[9]="9.  $(text 73)"
-  #MENU_OPTION[10]="10. $(text 75)"
+  MENU_OPTION[10]="10. Claude 访问测试"
   #MENU_OPTION[11]="11. $(text 80)"
   MENU_OPTION[12]="12. ${IPTABLE_INSTALLED}$(text 138)"
   #MENU_OPTION[13]="13. ${WIREPROXY_INSTALLED}$(text 148)"
@@ -3618,7 +3684,7 @@ menu_setting() {
   MENU_OPTION[0]="0.  $(text 76)"
 
   ACTION[4]() { OPTION=o; onoff; }
-  ACTION[5]() { client_install; }; ACTION[6]() { change_ip; }; ACTION[7]() { uninstall; }; ACTION[8]() { update; }; ACTION[9]() { bbrInstall; }; #ACTION[10]() { ver; };
+  ACTION[5]() { client_install; }; ACTION[6]() { change_ip; }; ACTION[7]() { uninstall; }; ACTION[8]() { update; }; ACTION[9]() { bbrInstall; }; ACTION[10]() { claude_access_test; };
   #ACTION[11]() { bash <(curl -sSL https://raw.githubusercontent.com/ccxkai233/WARP-Guardian/main/unlock.sh) -$L; };
   ACTION[12]() { IS_ANEMONE=is_anemone ;install; };
   #ACTION[13]() { IS_PUFFERFFISH=is_pufferffish; install; };
@@ -3820,6 +3886,9 @@ case "$OPTION" in
     ;;
   g )
     [ ! -e /etc/wireguard/warp.conf ] && ( GLOBAL_OR_NOT_CHOOSE=2 && CONF=${CONF3[n]} && install; true ) || working_mode_switch
+    ;;
+  t )
+    claude_access_test; exit 0
     ;;
   * )
     menu
