@@ -1,0 +1,171 @@
+{
+  "timestamp": "2025-08-22T11:53:55+08:00",
+  "project_name": "warp-more-unlocks",
+  "scan_summary": {
+    "total_estimated_files": 50,
+    "scanned_files": 12,
+    "coverage_percentage": 24,
+    "scan_phase": "B - Module Priority Scanning",
+    "truncated": false
+  },
+  "root_documentation": {
+    "file": "/Users/yanjuan/IdeaProjects/warp-more-unlocks/CLAUDE.md",
+    "status": "created",
+    "contains": ["project_vision", "architecture_overview", "mermaid_diagram", "module_index", "development_guide"]
+  },
+  "modules": [
+    {
+      "path": "/",
+      "name": "核心脚本集",
+      "responsibility": "WARP账户管理、一键安装、交互菜单、API接口",
+      "entry_points": ["menu.sh", "api.sh", "docker.sh", "warp-go.sh", "autowarp.exp"],
+      "key_files": [
+        "menu.sh",
+        "api.sh", 
+        "docker.sh",
+        "warp-go.sh",
+        "autowarp.exp",
+        "README.md",
+        "LICENSE"
+      ],
+      "interfaces": {
+        "command_line": ["bash menu.sh", "bash api.sh", "bash docker.sh", "bash warp-go.sh [options]"],
+        "interactive": "menu.sh提供交互式选择界面",
+        "api": "api.sh提供WARP账户API管理"
+      },
+      "dependencies": ["curl", "wget", "bash", "systemctl", "ip命令"],
+      "technology_stack": ["Bash", "Expect", "WireGuard", "Docker"]
+    },
+    {
+      "path": "pc/",
+      "name": "PC平台工具",
+      "responsibility": "macOS平台WARP一键安装和管理",
+      "documentation": "/Users/yanjuan/IdeaProjects/warp-more-unlocks/pc/CLAUDE.md",
+      "entry_points": ["mac.sh"],
+      "key_files": ["mac.sh", "README.md"],
+      "interfaces": {
+        "command_line": ["bash mac.sh c", "bash mac.sh e", "warp [options]"],
+        "shortcuts": ["warp o", "warp u", "warp a", "warp v"]
+      },
+      "dependencies": ["macOS", "brew", "wireguard-tools", "sudo权限"],
+      "technology_stack": ["Bash", "WireGuard", "WGCF"]
+    },
+    {
+      "path": "wgcf/",
+      "name": "非官方WARP CLI",
+      "responsibility": "跨平台Cloudflare WARP命令行工具",
+      "documentation": "/Users/yanjuan/IdeaProjects/warp-more-unlocks/wgcf/CLAUDE.md",
+      "entry_points": ["wgcf"],
+      "key_files": ["README.md", "openapi-spec.json", "generate-api.sh"],
+      "interfaces": {
+        "command_line": ["wgcf register", "wgcf generate", "wgcf update", "wgcf status", "wgcf trace"],
+        "environment_variables": ["WGCF_LICENSE_KEY"]
+      },
+      "dependencies": ["WireGuard", "OpenAPI3客户端"],
+      "technology_stack": ["Go", "WireGuard", "OpenAPI3"],
+      "data_models": ["wgcf-account.toml", "wgcf-profile.conf"]
+    },
+    {
+      "path": "wireguard-go/",
+      "name": "WireGuard Go实现", 
+      "responsibility": "WireGuard协议的用户空间Go语言实现",
+      "documentation": "/Users/yanjuan/IdeaProjects/warp-more-unlocks/wireguard-go/CLAUDE.md",
+      "entry_points": ["wireguard-go"],
+      "key_files": ["README.md"],
+      "interfaces": {
+        "command_line": ["wireguard-go [options] device_name"],
+        "management": "兼容wg命令行工具"
+      },
+      "dependencies": ["Go语言", "TUN设备支持", "网络权限"],
+      "technology_stack": ["Go", "WireGuard协议", "TUN/TAP"]
+    },
+    {
+      "path": "wireproxy/",
+      "name": "WireGuard代理工具",
+      "responsibility": "将WireGuard连接转换为SOCKS5/HTTP代理或隧道",
+      "documentation": "/Users/yanjuan/IdeaProjects/warp-more-unlocks/wireproxy/CLAUDE.md", 
+      "entry_points": ["wireproxy"],
+      "key_files": ["README.md", "UseWithVPN.md", "LICENSE"],
+      "interfaces": {
+        "command_line": ["wireproxy -c config.conf", "wireproxy -d", "wireproxy -s"],
+        "proxy_protocols": ["SOCKS5", "HTTP", "TCP隧道", "STDIO隧道"],
+        "monitoring": ["/metrics", "/readyz"]
+      },
+      "dependencies": ["用户空间运行", "端口权限"],
+      "technology_stack": ["Go", "WireGuard", "SOCKS5", "HTTP代理"],
+      "data_models": ["config.conf配置文件"]
+    },
+    {
+      "path": "endpoint/",
+      "name": "端点优化工具",
+      "responsibility": "WARP网络端点测试、优化和选择",
+      "documentation": "/Users/yanjuan/IdeaProjects/warp-more-unlocks/endpoint/CLAUDE.md",
+      "entry_points": ["warp-linux-amd64", "warp-linux-arm64", "warp-linux-s390x"],
+      "key_files": ["warp-linux-amd64", "warp-linux-arm64", "warp-linux-s390x", "ipv4", "ipv6"],
+      "interfaces": {
+        "command_line": ["./warp-linux-[arch] -file [endpoint_list] -output [result_file]"],
+        "input_formats": ["IPv4端点列表", "IPv6端点列表"],
+        "output_formats": ["CSV格式测试结果"]
+      },
+      "dependencies": ["Linux系统", "UDP端口访问", "多架构支持"],
+      "technology_stack": ["二进制工具", "网络测试", "并发处理"]
+    }
+  ],
+  "ignore_patterns": [
+    "node_modules/**",
+    ".git/**", 
+    ".github/**",
+    "dist/**",
+    "build/**",
+    ".next/**", 
+    "__pycache__/**",
+    "*.lock",
+    "*.log",
+    "*.bin",
+    "*.pdf",
+    "*.png",
+    "*.jpg", 
+    "*.jpeg",
+    "*.gif",
+    "*.mp4",
+    "*.zip",
+    "*.tar",
+    "*.gz"
+  ],
+  "coverage_details": {
+    "scanned_directories": ["/", "pc/", "wgcf/", "wireguard-go/", "wireproxy/", "endpoint/"],
+    "key_files_read": [
+      "/Users/yanjuan/IdeaProjects/warp-more-unlocks/README.md",
+      "/Users/yanjuan/IdeaProjects/warp-more-unlocks/LICENSE", 
+      "/Users/yanjuan/IdeaProjects/warp-more-unlocks/menu.sh",
+      "/Users/yanjuan/IdeaProjects/warp-more-unlocks/api.sh",
+      "/Users/yanjuan/IdeaProjects/warp-more-unlocks/docker.sh",
+      "/Users/yanjuan/IdeaProjects/warp-more-unlocks/warp-go.sh",
+      "/Users/yanjuan/IdeaProjects/warp-more-unlocks/autowarp.exp",
+      "/Users/yanjuan/IdeaProjects/warp-more-unlocks/pc/README.md",
+      "/Users/yanjuan/IdeaProjects/warp-more-unlocks/pc/mac.sh",
+      "/Users/yanjuan/IdeaProjects/warp-more-unlocks/wgcf/README.md", 
+      "/Users/yanjuan/IdeaProjects/warp-more-unlocks/wireguard-go/README.md",
+      "/Users/yanjuan/IdeaProjects/warp-more-unlocks/wireproxy/README.md"
+    ],
+    "gaps_identified": [
+      "部分二进制文件未详细分析",
+      "配置文件模板可进一步补充",
+      "自动化测试脚本待完善"
+    ]
+  },
+  "next_steps_recommended": [
+    "深度分析endpoint/目录下的二进制工具",
+    "补充各模块的配置文件模板示例", 
+    "完善自动化测试和CI/CD相关文档",
+    "添加常见问题和故障排除指南",
+    "集成各模块间的依赖关系图"
+  ],
+  "technical_summary": {
+    "primary_languages": ["Bash", "Go", "Expect"],
+    "key_technologies": ["WireGuard", "WARP", "SOCKS5", "HTTP代理", "Docker"],
+    "architecture_pattern": "模块化工具集合",
+    "deployment_targets": ["Linux", "macOS", "Docker容器"],
+    "main_use_cases": ["VPN网络解锁", "代理服务", "网络优化", "账户管理"]
+  }
+}
