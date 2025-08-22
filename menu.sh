@@ -257,8 +257,8 @@ E[121]="Changing Netflix IP is adapted from other authors [luoxue-bot],[https://
 C[121]="更换支持 Netflix IP 改编自 [luoxue-bot] 的成熟作品，地址[https://github.com/luoxue-bot/warp_auto_change_ip]，请熟知"
 E[122]="Port change to \$PORT succeeded."
 C[122]="端口成功更换至 \$PORT"
-E[123]="Change the WARP IP to support streaming services (warp i)"
-C[123]="更换支持流媒体的 IP (warp i)"
+E[123]="Change the WARP IP to support streaming services and unlock services (warp i)"
+C[123]="更换支持流媒体和服务解锁的 IP (warp i)"
 E[124]="1. Brush WARP IPv4 (default)\n 2. Brush WARP IPv6"
 C[124]="1. 刷 WARP IPv4 (默认)\n 2. 刷 WARP IPv6"
 E[125]="\$(date +'%F %T') Region: \$REGION Done. IPv\$NF: \$WAN  \$COUNTRY  \$ASNORG. Retest after 1 hour. Brush ip runing time:\$DAY days \$HOUR hours \$MIN minutes \$SEC seconds"
@@ -1176,6 +1176,22 @@ calc_ip_net(){
         fi
     }
 
+    MediaUnlockTest_Claude(){
+        local CurlARG="$1"
+        local ip_version="$2"
+        claude=()
+        
+        # 测试 Claude 官网访问
+        local claude_result=$(curl $CurlARG -$ip_version -s --max-time 10 -o /dev/null -w "%{http_code}" "https://claude.ai" 2>/dev/null)
+        if [ "$claude_result" = "200" ] || [ "$claude_result" = "302" ] || [ "$claude_result" = "301" ]; then
+            claude[ustatus]="${smedia_yes}"
+        elif [ -z "$claude_result" ] || [ "$claude_result" = "000" ]; then
+            claude[ustatus]="${smedia_bad}"
+        else
+            claude[ustatus]="${smedia_no}"
+        fi
+    }
+
     # --- Main Logic ---
     local PROXY_ARG="--proxy socks5h://127.0.0.1:$1"
     local IP_VERSION="$2"
@@ -1208,6 +1224,10 @@ calc_ip_net(){
             "Spotify")
                 MediaUnlockTest_Spotify "$PROXY_ARG" "$IP_VERSION"
                 echo -e " Spotify:\t${spotify[ustatus]}"
+                ;;
+            "Claude")
+                MediaUnlockTest_Claude "$PROXY_ARG" "$IP_VERSION"
+                echo -e " Claude:\t${claude[ustatus]}"
                 ;;
         esac
     done
@@ -1292,20 +1312,20 @@ change_ip() {
     change_warp() {
         # --- New Interactive Menu ---
         local tests_to_run=()
-        local all_tests=("Netflix" "Disney+" "ChatGPT" "YouTube" "Amazon" "Spotify")
+        local all_tests=("Netflix" "Disney+" "ChatGPT" "YouTube" "Amazon" "Spotify" "Claude")
         
         hint "\n 请选择要测试解锁的流媒体服务:"
         for i in "${!all_tests[@]}"; do
             hint " $((i+1)). ${all_tests[i]}"
         done
-        hint " (输入数字，多个用空格隔开，例如 '1 2 5'，直接按回车则测试所有)"
+        hint " (输入数字，多个用空格隔开，例如 '1 2 5 7'，直接按回车则测试所有)"
         reading " 您的选择: " user_choices
 
         if [ -z "$user_choices" ]; then
             tests_to_run=("${all_tests[@]}")
         else
             for choice in $user_choices; do
-                if [[ "$choice" =~ ^[1-6]$ ]]; then
+                if [[ "$choice" =~ ^[1-7]$ ]]; then
                     tests_to_run+=("${all_tests[$((choice-1))]}")
                 fi
             done
@@ -1392,20 +1412,20 @@ change_ip() {
     change_client() {
         # --- New Interactive Menu ---
         local tests_to_run=()
-        local all_tests=("Netflix" "Disney+" "ChatGPT" "YouTube" "Amazon" "Spotify")
+        local all_tests=("Netflix" "Disney+" "ChatGPT" "YouTube" "Amazon" "Spotify" "Claude")
         
         hint "\n 请选择要测试解锁的流媒体服务:"
         for i in "${!all_tests[@]}"; do
             hint " $((i+1)). ${all_tests[i]}"
         done
-        hint " (输入数字，多个用空格隔开，例如 '1 2 5'，直接按回车则测试所有)"
+        hint " (输入数字，多个用空格隔开，例如 '1 2 5 7'，直接按回车则测试所有)"
         reading " 您的选择: " user_choices
 
         if [ -z "$user_choices" ]; then
             tests_to_run=("${all_tests[@]}")
         else
             for choice in $user_choices; do
-                if [[ "$choice" =~ ^[1-6]$ ]]; then
+                if [[ "$choice" =~ ^[1-7]$ ]]; then
                     tests_to_run+=("${all_tests[$((choice-1))]}")
                 fi
             done
@@ -1482,20 +1502,20 @@ change_ip() {
     change_wireproxy() {
         # --- New Interactive Menu ---
         local tests_to_run=()
-        local all_tests=("Netflix" "Disney+" "ChatGPT" "YouTube" "Amazon" "Spotify")
+        local all_tests=("Netflix" "Disney+" "ChatGPT" "YouTube" "Amazon" "Spotify" "Claude")
         
         hint "\n 请选择要测试解锁的流媒体服务:"
         for i in "${!all_tests[@]}"; do
             hint " $((i+1)). ${all_tests[i]}"
         done
-        hint " (输入数字，多个用空格隔开，例如 '1 2 5'，直接按回车则测试所有)"
+        hint " (输入数字，多个用空格隔开，例如 '1 2 5 7'，直接按回车则测试所有)"
         reading " 您的选择: " user_choices
 
         if [ -z "$user_choices" ]; then
             tests_to_run=("${all_tests[@]}")
         else
             for choice in $user_choices; do
-                if [[ "$choice" =~ ^[1-6]$ ]]; then
+                if [[ "$choice" =~ ^[1-7]$ ]]; then
                     tests_to_run+=("${all_tests[$((choice-1))]}")
                 fi
             done
